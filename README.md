@@ -1,4 +1,4 @@
-# incident-resolution-swarm
+# Enterprise IT Support & Incident Resolution Swarm
 
 Enterprise IT Support & Incident Resolution Swarm (AEE Bootcamp final hackathon).
 A LangGraph multi-agent system that triages, investigates and resolves IT incidents using
