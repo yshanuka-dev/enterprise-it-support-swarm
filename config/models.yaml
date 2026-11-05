@@ -1,32 +1,42 @@
-# Model routing. Small/fast models for routine work, larger ones only for hard reasoning.
-# Change provider/model here only; no code changes needed. Confirm your provider and budget.
+# Model routing. Fast, cheap models for routine work; stronger ones only for hard reasoning.
+# Model IDs change often: check them against Google AI Studio and the xAI console before running.
+# Change provider/model here only; no code changes needed.
 tiers:
-  small:
-    provider: anthropic
-    model: claude-haiku-5-5
+  small:                       # triage, FAQ matching, distillation, voice
+    provider: google
+    model: gemini-3.1-flash-lite
     max_output_tokens: 1024
-  medium:
-    provider: anthropic
-    model: claude-sonnet-5-5
+  medium:                      # investigator
+    provider: google
+    model: gemini-flash-latest
     max_output_tokens: 2048
-  large:
-    provider: anthropic
-    model: claude-opus-5-5
+  large:                       # resolver (and resolver_critical)
+    provider: xai
+    model: grok-4.3
+    max_output_tokens: 4096
+  critical:                    # only for high/critical severity incidents
+    provider: xai
+    model: grok-4.5
     max_output_tokens: 4096
 
-roles:                      # which tier each agent role uses
+roles:                         # which tier each agent role uses
   triage: small
   cag_match: small
   distillation: small
   memory_writeback: small
   voice: small
   investigator: medium
-  resolver: medium
-  resolver_critical: large  # only for high/critical severity
+  resolver: large
+  resolver_critical: critical
+
+embedding:                     # used for Qdrant (runbooks, memory, FAQ cache)
+  provider: google
+  model: gemini-embedding-001
+  dimensions: 768
 
 limits:
-  max_tool_retries: 3       # rubric: max 3 retries, then escalate to a human
-  max_hops: 8               # graph backstop against loops
-  cag_semantic_threshold: 0.88   # start here, tune on Day 5
-  rag_min_score: 0.35            # below this: say 'no runbook found' and escalate; tune on Day 5
+  max_tool_retries: 3          # rubric: max 3 retries, then escalate to a human
+  max_hops: 8                  # graph backstop against loops
+  cag_semantic_threshold: 0.88 # start here, tune on Day 5
+  rag_min_score: 0.35          # below this: say 'no runbook found' and escalate; tune on Day 5
   voice_target_latency_s: 2.0
