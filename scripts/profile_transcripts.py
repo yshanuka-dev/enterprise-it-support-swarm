@@ -20,7 +20,10 @@ def main() -> None:
     show_pairs = "--pairs" in sys.argv
     folder = Path(args[0]) if args else DEFAULT_DIR
     files = sorted(folder.glob("*.json"))
-    docs = [json.loads(p.read_text(encoding="utf-8")) for p in files]
+    docs = [
+        d for p in files
+        if (d := json.loads(p.read_text(encoding="utf-8"))) and "messages" in d
+    ]
     print(f"{len(docs)} transcripts in {folder}")
     if not docs:
         print("  nothing to profile; pass a directory containing transcript .json files")
