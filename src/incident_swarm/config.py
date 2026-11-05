@@ -24,6 +24,9 @@ class Settings(BaseSettings):
 
     anthropic_api_key: str | None = None
     openai_api_key: str | None = None
+    google_api_key: str | None = None
+    xai_api_key: str | None = None      # Grok / xAI
+    groq_api_key: str | None = None     # Groq Cloud (free tier, OpenAI-compatible)
 
     langfuse_public_key: str | None = None
     langfuse_secret_key: str | None = None

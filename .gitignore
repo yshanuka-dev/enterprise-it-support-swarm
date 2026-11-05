@@ -9,6 +9,7 @@ data/raw/*
 !data/raw/.gitkeep
 *.zip
 .DS_Store
+data/*.jsonl
 
 Zuu Crew IT Support Swarm Build Plan.pdf
 AEE Final Hackthon.pdf

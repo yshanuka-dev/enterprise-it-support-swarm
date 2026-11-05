@@ -42,6 +42,11 @@ help:
 	@echo "    make upload-dry    Validate transcripts for S3 (dry-run, no upload)"
 	@echo "    make upload-s3     Upload transcripts to S3 (requires S3_BUCKET in .env)"
 	@echo ""
+	@echo "  Distillation (requires GOOGLE_API_KEY + S3_BUCKET in .env)"
+	@echo "    make distill-sample  Run distillation on 50 random transcripts (pilot)"
+	@echo "    make distill-review  Review quality of distilled_sample.jsonl by eye"
+	@echo "    make distill-full    Run distillation on all 1110 transcripts"
+	@echo ""
 	@echo "  Quality"
 	@echo "    make test          Run pytest"
 	@echo "    make lint          Run ruff linter"
@@ -118,6 +123,31 @@ upload-s3:
 	$(PYTHON) -m incident_swarm.pipeline.s3_upload \
 		--source $(TRANSCRIPT_DIR) \
 		--create-bucket
+
+# ---------------------------------------------------------------------------
+# DISTILLATION
+# ---------------------------------------------------------------------------
+DISTILL_SAMPLE := data/distilled_sample.jsonl
+DISTILL_FULL   := data/distilled_full.jsonl
+
+.PHONY: distill-sample
+distill-sample:
+	$(PYTHON) -m incident_swarm.pipeline.distill \
+		--limit 50 \
+		--out $(DISTILL_SAMPLE)
+	@echo "✅  Sample done → review with: make distill-review"
+
+.PHONY: distill-review
+distill-review:
+	$(PYTHON) -m incident_swarm.pipeline.distill \
+		--review $(DISTILL_SAMPLE)
+
+.PHONY: distill-full
+distill-full:
+	$(PYTHON) -m incident_swarm.pipeline.distill \
+		--limit 1110 \
+		--out $(DISTILL_FULL)
+	@echo "✅  Full distillation done → $(DISTILL_FULL)"
 
 # ---------------------------------------------------------------------------
 # QUALITY
