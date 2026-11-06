@@ -20,12 +20,18 @@ DOC = {
 
 
 def _result(**over):
-    base = dict(
-        user_problem="Dead pixels", has_concrete_resolution=True, resolution_addresses_problem=False,
-        resolved_problem="Dock USB-C failure", root_cause="Old dock firmware",
-        root_cause_category="software_bug", resolution_steps=["Flashed firmware 1.4.0"],
-        affected_service=None, confidence=0.9,
-    )
+    base = {
+        "user_problem": "Dead pixels",
+        "has_concrete_resolution": True,
+        "resolution_addresses_problem": False,
+        "resolved_problem": "Dock USB-C failure",
+        "match_reasoning": "User reported a screen, the fix was a dock.",
+        "root_cause": "Old dock firmware",
+        "root_cause_category": "software_bug",
+        "resolution_steps": ["Flashed firmware 1.4.0"],
+        "affected_service": None,
+        "confidence": 0.9,
+    }
     return distill.Distilled(**{**base, **over})
 
 

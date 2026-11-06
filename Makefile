@@ -47,6 +47,12 @@ help:
 	@echo "    make distill-review  Review quality of distilled_sample.jsonl by eye"
 	@echo "    make distill-full    Run distillation on all 1110 transcripts"
 	@echo ""
+	@echo "  Day 4: Ingestion & Procedural Memory (Qdrant)"
+	@echo "    make ingest-distill  Concurrently distil all transcripts from S3 (resumable)"
+	@echo "    make ingest-stats    Show quality metrics and indexable count for distilled data"
+	@echo "    make ingest-index    Embed and index qualified resolutions into Qdrant"
+	@echo "    make memory-search   Query procedural memory (e.g. make memory-search QUERY=\"...\")"
+	@echo ""
 	@echo "  Quality"
 	@echo "    make test          Run pytest"
 	@echo "    make lint          Run ruff linter"
@@ -133,6 +139,7 @@ DISTILL_FULL   := data/distilled_full.jsonl
 .PHONY: distill-sample
 distill-sample:
 	$(PYTHON) -m incident_swarm.pipeline.distill \
+		--provider gemini \
 		--limit 50 \
 		--out $(DISTILL_SAMPLE)
 	@echo "✅  Sample done → review with: make distill-review"
@@ -145,9 +152,41 @@ distill-review:
 .PHONY: distill-full
 distill-full:
 	$(PYTHON) -m incident_swarm.pipeline.distill \
+		--provider gemini \
 		--limit 1110 \
 		--out $(DISTILL_FULL)
 	@echo "✅  Full distillation done → $(DISTILL_FULL)"
+
+# ---------------------------------------------------------------------------
+# DAY 4: INGESTION & PROCEDURAL MEMORY (QDRANT)
+# ---------------------------------------------------------------------------
+INGEST_OUT := data/distilled_all.jsonl
+WORKERS    ?= 4
+LIMIT      ?= 0
+QUERY      ?= Redis out of memory
+
+.PHONY: ingest-distill
+ingest-distill:
+	$(PYTHON) -m incident_swarm.pipeline.ingest distill \
+		--workers $(WORKERS) \
+		--limit $(LIMIT) \
+		--out $(INGEST_OUT)
+	@echo "✅  Concurrent distillation completed → $(INGEST_OUT)"
+
+.PHONY: ingest-stats
+ingest-stats:
+	$(PYTHON) -m incident_swarm.pipeline.ingest stats \
+		--file $(INGEST_OUT)
+
+.PHONY: ingest-index
+ingest-index:
+	$(PYTHON) -m incident_swarm.pipeline.ingest index \
+		--file $(INGEST_OUT)
+	@echo "✅  Distilled records indexed into Qdrant procedural memory"
+
+.PHONY: memory-search
+memory-search:
+	$(PYTHON) -m incident_swarm.pipeline.ingest search "$(QUERY)"
 
 # ---------------------------------------------------------------------------
 # QUALITY

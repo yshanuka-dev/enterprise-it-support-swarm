@@ -57,15 +57,24 @@ class Tier(BaseModel):
     max_output_tokens: int
 
 
+class Embedding(BaseModel):
+    """Embedding configuration for Qdrant / procedural memory."""
+
+    provider: str
+    model: str
+    dimensions: int
+
+
 class ModelConfig(BaseModel):
     """Parsed config/models.yaml."""
 
     tiers: dict[str, Tier]
     roles: dict[str, str]
     limits: dict[str, float]
+    embedding: Embedding | None = None
 
     @model_validator(mode="after")
-    def _roles_use_known_tiers(self) -> "ModelConfig":
+    def _roles_use_known_tiers(self) -> ModelConfig:
         unknown = {r: t for r, t in self.roles.items() if t not in self.tiers}
         if unknown:
             raise ValueError(f"roles reference unknown tiers: {unknown}")

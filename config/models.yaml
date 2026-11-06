@@ -29,10 +29,10 @@ roles:                         # which tier each agent role uses
   resolver: large
   resolver_critical: critical
 
-embedding:                     # used for Qdrant (runbooks, memory, FAQ cache)
-  provider: google
-  model: gemini-embedding-001
-  dimensions: 768
+embedding:
+  provider: fastembed
+  model: BAAI/bge-small-en-v1.5
+  dimensions: 384
 
 limits:
   max_tool_retries: 3          # rubric: max 3 retries, then escalate to a human
@@ -40,3 +40,4 @@ limits:
   cag_semantic_threshold: 0.88 # start here, tune on Day 5
   rag_min_score: 0.35          # below this: say 'no runbook found' and escalate; tune on Day 5
   voice_target_latency_s: 2.0
+  min_confidence_to_index: 0.6

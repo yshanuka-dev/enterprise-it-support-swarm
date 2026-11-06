@@ -29,8 +29,10 @@ from typing import Literal
 
 import boto3
 from google import genai
-from google.genai import errors as genai_errors, types
-from openai import OpenAI, RateLimitError as OpenAIRateLimitError
+from google.genai import errors as genai_errors
+from google.genai import types
+from openai import OpenAI
+from openai import RateLimitError as OpenAIRateLimitError
 from pydantic import BaseModel, Field, field_validator
 
 from incident_swarm.config import ROOT, get_settings, load_model_config
@@ -71,12 +73,13 @@ The transcripts are noisy on purpose:
 Rules:
 1. user_problem: what the user actually reported, in one or two clear sentences. Ignore tone, slang and rudeness.
 2. The resolution is the agent message that states a specific diagnosis and concrete actions. If there is none, set has_concrete_resolution to false.
-3. resolution_addresses_problem: true only if that resolution plausibly fixes the user's reported problem.
-4. resolved_problem: the problem the resolution message itself solves, inferred from that message (equal to user_problem when they match).
+3. resolved_problem: the problem the resolution message itself solves, inferred from that message (equal to user_problem when they match).
+4. match_reasoning: one sentence comparing the SYSTEM or COMPONENT the user reported (service, host, device, tool, error) with the one the resolution fixed. Then set resolution_addresses_problem to true ONLY if they are the same system, or the resolution clearly explains the user's exact symptom. Sharing a vague symptom (slow, down, errors) is NOT enough. If the user names a specific system (for example the CI pipeline or Kubernetes nodes) and the resolution fixes a different one (for example an Elasticsearch task or auth pods), answer false. When unsure, answer false.
 5. root_cause and resolution_steps must come ONLY from the resolution message, never from false starts.
 6. root_cause_category: pick the closest category, or 'unknown'.
 7. affected_service: a service or host named in the resolution, else null.
-8. Never invent details that are not in the transcript. confidence is between 0 and 1.
+8. Never invent details that are not in the transcript. confidence (0 to 1) is how clearly the transcript supports your extraction: a specific, detailed resolution scores high, a vague one low. It is not about whether the problem matches.
+9. In resolution_steps, replace employee IDs, ticket numbers, asset tags and personal names with placeholders such as <employee_id> or <ticket_id>.
 """
 
 
@@ -88,8 +91,11 @@ class Distilled(BaseModel):
 
     user_problem: str = Field(description="What the user reported, cleaned up")
     has_concrete_resolution: bool
-    resolution_addresses_problem: bool
     resolved_problem: str = Field(description="Problem the resolution message actually solves")
+    match_reasoning: str = Field(
+        description="One sentence comparing the reported system with the system the resolution fixed"
+    )
+    resolution_addresses_problem: bool
     root_cause: str = Field(description="Root cause stated in the resolution message")
     root_cause_category: RootCause
     resolution_steps: list[str]
@@ -145,8 +151,10 @@ def build_prompt(doc: dict) -> str:
 # ---------------------------------------------------------------------------
 # Provider-specific distillation functions
 # ---------------------------------------------------------------------------
-def distill_one_gemini(client: genai.Client, model: str, doc: dict) -> Distilled:
-    """Call Gemini and return the validated structured record."""
+def distill_one_gemini(client, model: str, doc: dict) -> Distilled:
+    """Call Gemini once and return the validated structured record."""
+    from google.genai import types
+
     response = client.models.generate_content(
         model=model,
         contents=build_prompt(doc),
@@ -160,6 +168,9 @@ def distill_one_gemini(client: genai.Client, model: str, doc: dict) -> Distilled
     if response.parsed is not None:
         return response.parsed
     return Distilled.model_validate_json(response.text)
+
+
+distill_one = distill_one_gemini  # Backward compatibility alias for tests
 
 
 def distill_one_groq(client: OpenAI, model: str, doc: dict) -> Distilled:
@@ -258,6 +269,7 @@ def review(path: Path) -> None:
         print(f"\n{r['transcript_id']} [{r['ticket_type']}] {flag} conf={r['confidence']:.2f}")
         print(f"  user_problem    : {r['user_problem']}")
         print(f"  resolved_problem: {r['resolved_problem']}")
+        print(f"  match_reasoning : {r['match_reasoning']}")
         print(f"  root_cause      : {r['root_cause']} ({r['root_cause_category']})")
         print(f"  steps           : {'; '.join(r['resolution_steps'])[:200]}")
 
@@ -268,8 +280,8 @@ def review(path: Path) -> None:
 def main(argv: list[str] | None = None) -> int:
     """Distil a sample of transcripts from S3, write structured JSONL, resume-safe."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--provider", choices=["gemini", "groq"], default="groq",
-                        help="LLM provider to use (default: groq)")
+    parser.add_argument("--provider", choices=["gemini", "groq"], default="gemini",
+                        help="LLM provider to use (default: gemini)")
     parser.add_argument("--model", default=None,
                         help="Override model name (default: provider default)")
     parser.add_argument("--limit", type=int, default=50)
@@ -330,7 +342,7 @@ def main(argv: list[str] | None = None) -> int:
                 record = make_record(key, doc, distill_with_retry(distill_fn, client, model, doc))
                 ok_fh.write(json.dumps(record, ensure_ascii=False) + "\n")
                 ok_fh.flush()
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - one bad transcript must not stop the run
                 failures += 1
                 log.warning("failed %s: %s", key, exc)
                 err_fh.write(json.dumps({"s3_key": key, "error": str(exc)}) + "\n")
