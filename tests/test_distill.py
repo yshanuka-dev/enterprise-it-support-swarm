@@ -104,7 +104,7 @@ def test_resume_skips_done_keys_and_logs_failures(tmp_path, monkeypatch):
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "test")
     get_settings.cache_clear()
     fake = FakeClient(_result())
-    monkeypatch.setattr(distill.genai, "Client", lambda api_key: fake)
+    monkeypatch.setattr(distill.genai, "Client", lambda api_key, **kw: fake)
     out = tmp_path / "out.jsonl"
     with mock_aws():
         s3 = boto3.client("s3", region_name=get_settings().aws_region)

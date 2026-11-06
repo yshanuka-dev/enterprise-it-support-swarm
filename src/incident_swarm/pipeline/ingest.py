@@ -14,6 +14,7 @@ import json
 import logging
 import random
 import sys
+import threading
 import time
 from collections import Counter
 from collections.abc import Callable
@@ -64,6 +65,28 @@ def with_retries(fn: Callable, attempts: int = 6, base: float = 1.0, cap: float 
                         type(exc).__name__, attempt, attempts, delay)
             sleep(delay)
 
+class RateLimiter:
+    """Allow at most `rpm` calls per minute across all threads (0 disables the limit)."""
+
+    def __init__(self, rpm: float, clock: Callable[[], float] = time.monotonic,
+                 sleep: Callable[[float], None] = time.sleep):
+        self.interval = 60.0 / rpm if rpm > 0 else 0.0
+        self._clock = clock
+        self._sleep = sleep
+        self._next = 0.0
+        self._lock = threading.Lock()
+
+    def wait(self) -> None:
+        """Block until this caller's turn."""
+        if not self.interval:
+            return
+        with self._lock:
+            now = self._clock()
+            start = max(now, self._next)
+            self._next = start + self.interval
+        if start > now:
+            self._sleep(start - now)
+
 
 def load_done_keys(path: Path) -> set[str]:
     """S3 keys already present in the output file (this is the checkpoint)."""
@@ -83,29 +106,41 @@ def make_distill_fn() -> Callable[[dict], distill.Distilled]:
 
     settings = get_settings()
     model = load_model_config().tier_for("distillation").model
-    client = genai.Client(api_key=settings.google_api_key)
+    client = genai.Client(api_key=settings.google_api_key, http_options={"api_version": "v1beta"})
     return lambda doc: distill.distill_one_gemini(client, model, doc)
 
 
 def distill_all(s3, bucket: str, prefix: str, out: Path, workers: int, limit: int,
                 distill_fn: Callable[[dict], distill.Distilled],
-                sleep: Callable[[float], None] = time.sleep) -> tuple[int, int]:
-    """Distil all transcripts not yet in `out`. Returns (succeeded, failed)."""
+                sleep: Callable[[float], None] = time.sleep, rpm: float = 0,
+                max_consecutive_failures: int = 8) -> tuple[int, int]:
+    """Distil all transcripts not yet in `out`. Returns (succeeded, failed).
+
+    rpm throttles requests per minute. If `max_consecutive_failures` records fail in a row
+    (quota exhausted, blocked network, bad key) the run stops early instead of failing everything.
+    """
     keys = sorted(list_existing(s3, bucket, prefix))
     if limit > 0:
         keys = keys[:limit]
-    todo = [k for k in keys if k not in load_done_keys(out)]
-    log.info("%d transcripts in S3 scope, %d to do, %d workers", len(keys), len(todo), workers)
+    done_keys = load_done_keys(out)
+    todo = [k for k in keys if k not in done_keys]
+    log.info("%d transcripts in S3 scope, %d to do, %d workers, rpm limit %s",
+             len(keys), len(todo), workers, rpm or "none")
 
     out.parent.mkdir(parents=True, exist_ok=True)
     error_path = out.with_suffix(".errors.jsonl")
-    ok = failed = 0
+    limiter = RateLimiter(rpm)
+    ok = failed = consecutive = 0
     started = time.monotonic()
 
     def process(key: str) -> dict:
         doc = json.loads(s3.get_object(Bucket=bucket, Key=key)["Body"].read())
-        result = with_retries(lambda: distill_fn(doc), sleep=sleep)
-        return distill.make_record(key, doc, result)
+
+        def call() -> distill.Distilled:
+            limiter.wait()
+            return distill_fn(doc)
+
+        return distill.make_record(key, doc, with_retries(call, sleep=sleep))
 
     with out.open("a", encoding="utf-8") as ok_fh, error_path.open("a", encoding="utf-8") as err_fh, \
             ThreadPoolExecutor(max_workers=workers) as pool:
@@ -116,11 +151,19 @@ def distill_all(s3, bucket: str, prefix: str, out: Path, workers: int, limit: in
                 record = future.result()
             except Exception as exc:  # noqa: BLE001 - one bad transcript must not stop the run
                 failed += 1
+                consecutive += 1
                 log.warning("failed %s: %s", key, exc)
                 err_fh.write(json.dumps({"s3_key": key, "error": f"{type(exc).__name__}: {exc}"}) + "\n")
                 err_fh.flush()
+                if consecutive >= max_consecutive_failures:
+                    for pending in futures:
+                        pending.cancel()
+                    log.error("stopping: %d failures in a row (quota, network or key problem?). "
+                              "Fix it and re-run; finished records are kept.", consecutive)
+                    break
             else:
                 ok += 1
+                consecutive = 0
                 ok_fh.write(json.dumps(record, ensure_ascii=False) + "\n")
                 ok_fh.flush()
             if n % 25 == 0:
@@ -164,6 +207,8 @@ def main(argv: list[str] | None = None) -> int:
     d = sub.add_parser("distill", help="distil all transcripts from S3")
     d.add_argument("--workers", type=int, default=4)
     d.add_argument("--limit", type=int, default=0, help="0 means all")
+    d.add_argument("--rpm", type=float, default=0, help="max requests per minute, 0 = unlimited")
+    d.add_argument("--max-consecutive-failures", type=int, default=8)
     d.add_argument("--out", type=Path, default=DEFAULT_OUT)
     d.add_argument("--bucket", default=None)
     d.add_argument("--prefix", default=DEFAULT_PREFIX)
@@ -190,7 +235,8 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         s3 = boto3.client("s3", region_name=settings.aws_region)
         ok, failed = distill_all(s3, bucket, args.prefix, args.out, args.workers, args.limit,
-                                 make_distill_fn())
+                                 make_distill_fn(), rpm=args.rpm,
+                                 max_consecutive_failures=args.max_consecutive_failures)
         log.info("finished: %d succeeded, %d failed. Re-run to retry failures.", ok, failed)
         return 0 if failed == 0 else 1
 

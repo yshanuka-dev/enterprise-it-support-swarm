@@ -4,7 +4,7 @@
 tiers:
   small:                       # triage, FAQ matching, distillation, voice
     provider: google
-    model: gemini-3.1-flash-lite
+    model: gemini-2.5-flash
     max_output_tokens: 1024
   medium:                      # investigator
     provider: google

@@ -4,13 +4,14 @@
 # Usage: make <target>
 # =============================================================================
 
-PYTHON      := python
 UV          := uv
 VENV        := .venv
-VENV_BIN    := $(VENV)/Scripts   # Windows path (Git Bash)
-PIP         := $(VENV_BIN)/pip
-PYTEST      := $(VENV_BIN)/pytest
-RUFF        := $(VENV_BIN)/ruff
+# Windows path (Git Bash)
+VENV_BIN    := $(VENV)/Scripts
+PYTHON      := $(VENV_BIN)/python.exe
+PIP         := $(VENV_BIN)/pip.exe
+PYTEST      := $(VENV_BIN)/pytest.exe
+RUFF        := $(VENV_BIN)/ruff.exe
 
 TRANSCRIPT_DIR := data/raw/historical_transcripts
 
@@ -160,28 +161,28 @@ distill-full:
 # ---------------------------------------------------------------------------
 # DAY 4: INGESTION & PROCEDURAL MEMORY (QDRANT)
 # ---------------------------------------------------------------------------
-INGEST_OUT := data/distilled_all.jsonl
-WORKERS    ?= 4
-LIMIT      ?= 0
-QUERY      ?= Redis out of memory
+INGEST_FILE ?= data/distilled_full.jsonl
+WORKERS     ?= 4
+LIMIT       ?= 0
+QUERY       ?= Redis out of memory
 
 .PHONY: ingest-distill
 ingest-distill:
 	$(PYTHON) -m incident_swarm.pipeline.ingest distill \
 		--workers $(WORKERS) \
 		--limit $(LIMIT) \
-		--out $(INGEST_OUT)
-	@echo "✅  Concurrent distillation completed → $(INGEST_OUT)"
+		--out $(INGEST_FILE)
+	@echo "✅  Concurrent distillation completed → $(INGEST_FILE)"
 
 .PHONY: ingest-stats
 ingest-stats:
 	$(PYTHON) -m incident_swarm.pipeline.ingest stats \
-		--file $(INGEST_OUT)
+		--file $(INGEST_FILE)
 
 .PHONY: ingest-index
 ingest-index:
 	$(PYTHON) -m incident_swarm.pipeline.ingest index \
-		--file $(INGEST_OUT)
+		--file $(INGEST_FILE)
 	@echo "✅  Distilled records indexed into Qdrant procedural memory"
 
 .PHONY: memory-search

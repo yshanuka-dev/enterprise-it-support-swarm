@@ -105,3 +105,28 @@ def test_index_records_counts_and_stats(capsys):
     assert stats == {"indexed": 1, "skipped": 1}
     ingest.print_stats(records, 0.6)
     assert "would be indexed" in capsys.readouterr().out
+
+def test_rate_limiter_spaces_calls():
+    now = [0.0]
+    sleeps: list[float] = []
+
+    def fake_sleep(seconds):
+        sleeps.append(seconds)
+        now[0] += seconds
+
+    limiter = ingest.RateLimiter(60, clock=lambda: now[0], sleep=fake_sleep)  # 1 call per second
+    for _ in range(3):
+        limiter.wait()
+    assert sleeps == [1.0, 1.0]
+    assert ingest.RateLimiter(0).interval == 0.0
+
+
+def test_circuit_breaker_stops_run_after_consecutive_failures(bucket, tmp_path):
+    out = tmp_path / "all.jsonl"
+
+    def always_blocked(doc):
+        raise PermissionError("403 blocked")
+
+    ok, failed = ingest.distill_all(bucket, "test-bucket", "transcripts/", out, 1, 0, always_blocked,
+                                    sleep=lambda s: None, max_consecutive_failures=2)
+    assert ok == 0 and failed == 2  # 5 transcripts exist, but the run stopped early

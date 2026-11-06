@@ -317,7 +317,7 @@ def main(argv: list[str] | None = None) -> int:
             log.error("set GOOGLE_API_KEY in .env")
             return 1
         model = args.model or load_model_config().tier_for("distillation").model
-        client = genai.Client(api_key=settings.google_api_key)
+        client = genai.Client(api_key=settings.google_api_key, http_options={"api_version": "v1beta"})
         distill_fn = distill_one_gemini
 
     log.info("provider=%s  model=%s", args.provider, model)
