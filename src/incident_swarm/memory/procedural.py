@@ -20,15 +20,16 @@ PAYLOAD_FIELDS = (
     "transcript_id", "s3_key", "ticket_type", "channel", "user_problem", "resolved_problem",
     "root_cause", "root_cause_category", "resolution_steps", "affected_service", "confidence",
     "satisfaction_score", "resolution_time_minutes", "was_escalated",
+    "canonical_id", "canonical_title", "canonical_category", "runbook_id",
 )
 
 
-def get_qdrant_client(settings: Settings | None = None) -> QdrantClient:
+def get_qdrant_client(settings: Settings | None = None, timeout: float = 60.0) -> QdrantClient:
     """Qdrant Cloud when QDRANT_URL is set, otherwise a local on-disk store under data/."""
     settings = settings or get_settings()
     if settings.qdrant_url:
-        return QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key)
-    return QdrantClient(path=str(ROOT / "data" / "qdrant_local"))
+        return QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key, timeout=timeout)
+    return QdrantClient(path=str(ROOT / "data" / "qdrant_local"), timeout=timeout)
 
 
 def ensure_collection(client: QdrantClient, name: str, dimensions: int) -> None:

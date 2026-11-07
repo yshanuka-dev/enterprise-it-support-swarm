@@ -189,7 +189,7 @@ def print_stats(records: list[dict], min_confidence: float) -> None:
 
 
 def index_records(records: list[dict], client, embedder, min_confidence: float,
-                  batch_size: int = 64) -> dict[str, int]:
+                  batch_size: int = 32) -> dict[str, int]:
     """Embed and upsert the indexable records in batches (safe to repeat)."""
     ensure_collection(client, COLLECTION, embedder.dimensions)
     keep = [r for r in records if should_index(r, min_confidence)]

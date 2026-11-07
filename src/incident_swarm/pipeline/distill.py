@@ -153,7 +153,6 @@ def build_prompt(doc: dict) -> str:
 # ---------------------------------------------------------------------------
 def distill_one_gemini(client, model: str, doc: dict) -> Distilled:
     """Call Gemini once and return the validated structured record."""
-    from google.genai import types
 
     response = client.models.generate_content(
         model=model,

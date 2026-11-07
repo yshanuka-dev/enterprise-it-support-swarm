@@ -1,0 +1,83 @@
+# Tier 1 FAQ cache (CAG). Drafted from the most common access_identity fixes in the historical data.
+# Review the answers before relying on them. Placeholders like <employee_id> are filled in later.
+entries:
+  - id: faq-vpn-reset
+    topic: vpn_reset
+    runbook: RB-VPN-SESSION
+    questions:
+      - How do I reset my VPN?
+      - My VPN won't connect
+      - VPN keeps failing to connect after it dropped
+      - VPN session is stuck
+      - I can't reconnect to the VPN
+      - VPN is not working
+    answer: |
+      A stale VPN session from your last connection is usually the cause. Disconnect the VPN client
+      completely, wait about 10 seconds, then reconnect. If it still fails, I can clear the stale
+      session on the RADIUS server and reset your client certificate. Reply 'escalate' and I will do that.
+
+  - id: faq-password-sync
+    topic: password_sync
+    runbook: RB-ACCOUNT-ACCESS
+    questions:
+      - I changed my password and now Jenkins rejects it
+      - My new password doesn't work in Grafana
+      - Locked out after a password change
+      - New AD password not accepted
+      - Can't log in to SSO after changing my password
+    answer: |
+      After an AD password change, old Kerberos tickets can conflict with the new password. I can purge
+      the stale tickets, reset your lockout counter and force a password sync across Jenkins, Grafana,
+      SSO and the wiki. Reply 'escalate' and I will start that now.
+
+  - id: faq-mfa-codes
+    topic: mfa_codes
+    runbook: RB-ACCOUNT-ACCESS
+    questions:
+      - My MFA code is not working
+      - Authenticator codes are rejected
+      - MFA token out of sync
+      - How do I reset my MFA?
+    answer: |
+      Rejected codes usually mean your token has drifted out of sync. First check that your phone's date
+      and time are set to automatic. If codes are still rejected, I can regenerate your TOTP seed and send
+      a new QR code to your registered email; your old codes will stop working. Reply 'escalate' to start.
+
+  - id: faq-staging-db-access
+    topic: staging_db_access
+    runbook: RB-ACCOUNT-ACCESS
+    questions:
+      - I can't connect to the staging database
+      - Staging DB connection refused for my account
+      - How do I get access to the staging database?
+    answer: |
+      Your account may have been flagged by an automated security scan that blocks accounts without recent
+      activity. Restoring access needs DevOps clearance, which I will verify. If you are cleared, I will
+      remove the block and add you to the staging read/write group. Reply 'escalate' to continue.
+
+  - id: faq-ssh-deploy-access
+    topic: ssh_deploy_access
+    runbook: RB-ACCOUNT-ACCESS
+    questions:
+      - I need SSH access to the production servers
+      - How do I get deploy permissions?
+      - New DevOps engineer needs production access
+    answer: |
+      Production SSH and deploy access needs DevOps clearance, which I will check first. If you are cleared,
+      I will add your SSH public key to the production servers and add you to the deploy group. Please send
+      your public key (the .pub file) and reply 'escalate' to continue.
+
+# Used by `knowledge tune` to pick the semantic threshold.
+test_hits:
+  - [VPN won't connect, faq-vpn-reset]
+  - [my vpn connection keeps failing, faq-vpn-reset]
+  - [cannot log in to jenkins after my password change, faq-password-sync]
+  - [my authenticator app codes are invalid, faq-mfa-codes]
+  - [staging database refuses my login, faq-staging-db-access]
+  - [I want ssh access to prod servers, faq-ssh-deploy-access]
+test_misses:
+  - Redis is running out of memory on prod-cache-01
+  - Why is the checkout API so slow today?
+  - My laptop screen has dead pixels
+  - I need a second monitor for design work
+  - The auth service is returning 502 errors

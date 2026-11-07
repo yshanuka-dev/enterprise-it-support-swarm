@@ -54,6 +54,14 @@ help:
 	@echo "    make ingest-index    Embed and index qualified resolutions into Qdrant"
 	@echo "    make memory-search   Query procedural memory (e.g. make memory-search QUERY=\"...\")"
 	@echo ""
+	@echo "  Day 5: Knowledge, CAG & Runbook RAG"
+	@echo "    make index-runbooks  Index official markdown runbooks into Qdrant"
+	@echo "    make index-faq       Index Tier 1 FAQ questions into Qdrant CAG collection"
+	@echo "    make tune-cag        Evaluate CAG semantic threshold against test questions"
+	@echo "    make ask             Query routing check (CAG vs RAG, e.g. make ask QUERY=\"...\")"
+	@echo "    make tag-canonical   Tag distilled records with canonical incident IDs & runbooks"
+	@echo "    make memory-search-canonical  Procedural search with duplicate hits collapsed"
+	@echo ""
 	@echo "  Quality"
 	@echo "    make test          Run pytest"
 	@echo "    make lint          Run ruff linter"
@@ -188,6 +196,37 @@ ingest-index:
 .PHONY: memory-search
 memory-search:
 	$(PYTHON) -m incident_swarm.pipeline.ingest search "$(QUERY)"
+
+# ---------------------------------------------------------------------------
+# DAY 5: KNOWLEDGE, CAG & RUNBOOK RAG
+# ---------------------------------------------------------------------------
+.PHONY: index-runbooks
+index-runbooks:
+	$(PYTHON) -m incident_swarm.pipeline.knowledge index-runbooks
+	@echo "✅  Runbooks chunked and indexed into Qdrant"
+
+.PHONY: index-faq
+index-faq:
+	$(PYTHON) -m incident_swarm.pipeline.knowledge index-faq
+	@echo "✅  FAQ entries indexed into Qdrant CAG collection"
+
+.PHONY: tune-cag
+tune-cag:
+	$(PYTHON) -m incident_swarm.pipeline.knowledge tune
+
+.PHONY: ask
+ask:
+	$(PYTHON) -m incident_swarm.pipeline.knowledge ask "$(QUERY)"
+
+.PHONY: tag-canonical
+tag-canonical:
+	$(PYTHON) -m incident_swarm.pipeline.knowledge tag-canonical \
+		--file $(INGEST_FILE)
+	@echo "✅  Canonical incident ids and runbooks tagged in $(INGEST_FILE)"
+
+.PHONY: memory-search-canonical
+memory-search-canonical:
+	$(PYTHON) -m incident_swarm.pipeline.knowledge memory-search "$(QUERY)"
 
 # ---------------------------------------------------------------------------
 # QUALITY
