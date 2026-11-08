@@ -62,6 +62,9 @@ help:
 	@echo "    make tag-canonical   Tag distilled records with canonical incident IDs & runbooks"
 	@echo "    make memory-search-canonical  Procedural search with duplicate hits collapsed"
 	@echo ""
+	@echo "  Day 6: Agent Graph & FastAPI Service"
+	@echo "    make run-api         Start the FastAPI server on port 8000"
+	@echo ""
 	@echo "  Quality"
 	@echo "    make test          Run pytest"
 	@echo "    make lint          Run ruff linter"
@@ -227,6 +230,13 @@ tag-canonical:
 .PHONY: memory-search-canonical
 memory-search-canonical:
 	$(PYTHON) -m incident_swarm.pipeline.knowledge memory-search "$(QUERY)"
+
+# ---------------------------------------------------------------------------
+# DAY 6: AGENT GRAPH & FASTAPI SERVICE
+# ---------------------------------------------------------------------------
+.PHONY: run-api
+run-api:
+	$(PYTHON) -m uvicorn incident_swarm.app.api:app --reload --host 0.0.0.0 --port 8000
 
 # ---------------------------------------------------------------------------
 # QUALITY
