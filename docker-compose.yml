@@ -1,6 +1,11 @@
-# Day 1: local Postgres seeded with the provided SQL.
-# Files in db/init run once, on first start of an empty volume.
-# To re-seed: docker compose down -v && docker compose up -d postgres
+# =============================================================================
+# Docker Compose: Local development & end-to-end verification stack
+# Usage:
+#   docker compose up -d           # start postgres & swarm API
+#   docker compose down            # stop services (volume preserved)
+#   docker compose down -v         # wipe everything (fresh seed on next up)
+# =============================================================================
+
 services:
   postgres:
     image: postgres:16
@@ -19,6 +24,28 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: swarm-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Override DATABASE_URL so the container accesses postgres over the docker network
+      DATABASE_URL: postgresql://${POSTGRES_USER:-swarm}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ops_db}
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
   pgdata:

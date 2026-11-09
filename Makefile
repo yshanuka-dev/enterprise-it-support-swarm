@@ -65,6 +65,16 @@ help:
 	@echo "  Day 6: Agent Graph & FastAPI Service"
 	@echo "    make run-api         Start the FastAPI server on port 8000"
 	@echo ""
+	@echo "  Day 7: Docker, AWS ECS & SSM Deployment"
+	@echo "    make ssm-sync        Push .env secrets to AWS SSM as SecureString"
+	@echo "    make aws-ecr-create  Create Amazon ECR repository"
+	@echo "    make aws-ecr-push    Build & push Docker image to Amazon ECR"
+	@echo "    make aws-iam-setup   Configure IAM roles for ECS Fargate & SSM access"
+	@echo "    make aws-ecs-deploy  Deploy ECS Fargate service & ALB"
+	@echo "    make aws-verify      Verify live health and chat on ALB"
+	@echo "    make compose-up      Start Postgres and Swarm API via Docker Compose"
+	@echo "    make compose-down    Stop Docker Compose services"
+	@echo ""
 	@echo "  Quality"
 	@echo "    make test          Run pytest"
 	@echo "    make lint          Run ruff linter"
@@ -237,6 +247,62 @@ memory-search-canonical:
 .PHONY: run-api
 run-api:
 	$(PYTHON) -m uvicorn incident_swarm.app.api:app --reload --host 0.0.0.0 --port 8000
+
+# ---------------------------------------------------------------------------
+# DAY 7: DOCKER, AWS ECS & SSM DEPLOYMENT
+# ---------------------------------------------------------------------------
+IMAGE_NAME := incident-swarm-api:latest
+
+.PHONY: docker-build
+docker-build:
+	docker build -t $(IMAGE_NAME) .
+	@echo "✅  Docker image built: $(IMAGE_NAME)"
+
+.PHONY: docker-run
+docker-run:
+	docker run --rm -it -p 8000:8000 --env-file .env $(IMAGE_NAME)
+
+.PHONY: compose-up
+compose-up:
+	docker compose up -d
+	@echo "✅  Postgres and Swarm API running. Check health at http://localhost:8000/health"
+
+.PHONY: compose-down
+compose-down:
+	docker compose down
+	@echo "🛑  Compose services stopped"
+
+.PHONY: ssm-verify
+ssm-verify:
+	$(PYTHON) scripts/setup_ssm.py --verify
+
+.PHONY: ssm-dry
+ssm-dry:
+	$(PYTHON) scripts/setup_ssm.py --dry-run
+
+.PHONY: ssm-sync
+ssm-sync:
+	$(PYTHON) scripts/setup_ssm.py --sync
+
+.PHONY: aws-ecr-create
+aws-ecr-create:
+	bash infra/scripts/01_create_ecr.sh
+
+.PHONY: aws-ecr-push
+aws-ecr-push:
+	bash infra/scripts/02_build_and_push_ecr.sh
+
+.PHONY: aws-iam-setup
+aws-iam-setup:
+	bash infra/scripts/03_setup_iam_roles.sh
+
+.PHONY: aws-ecs-deploy
+aws-ecs-deploy:
+	bash infra/scripts/04_deploy_ecs_fargate.sh
+
+.PHONY: aws-verify
+aws-verify:
+	bash infra/scripts/05_verify_deployment.sh
 
 # ---------------------------------------------------------------------------
 # QUALITY

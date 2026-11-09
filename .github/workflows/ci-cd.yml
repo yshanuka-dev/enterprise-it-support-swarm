@@ -1,0 +1,112 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  id-token: write   # Required for requesting the JWT token for AWS OIDC authentication
+  contents: read    # Required for actions/checkout
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. QUALITY CHECK & SECURITY
+  # ---------------------------------------------------------------------------
+  quality:
+    name: Code Quality & Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Secret Scan (Gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install uv and setup Python
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv pip install --system -e ".[dev]"
+
+      - name: Run Ruff Linter
+        run: uv run ruff check src tests scripts
+
+      - name: Run Pytest
+        env:
+          DATABASE_URL: "postgresql://swarm:testpass@localhost:5432/ops_db"
+          AWS_ACCESS_KEY_ID: "testing"
+          AWS_SECRET_ACCESS_KEY: "testing"
+          AWS_REGION: "ap-southeast-1"
+        run: uv run pytest -v
+
+  # ---------------------------------------------------------------------------
+  # 2. BUILD, PUSH & DEPLOY TO AWS ECS FARGATE
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Build, Push to ECR & Deploy to ECS
+    needs: quality
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (GitHub OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION || 'ap-southeast-1' }}
+          role-session-name: GitHubActions-ECR-ECS-Deploy
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY || 'incident-swarm-api' }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          IMAGE_LATEST="$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+          
+          docker build -t "$IMAGE_URI" -t "$IMAGE_LATEST" .
+          docker push "$IMAGE_URI"
+          docker push "$IMAGE_LATEST"
+          
+          echo "image=$IMAGE_URI" >> $GITHUB_OUTPUT
+
+      - name: Render ECS Task Definition
+        id: render-task-def
+        env:
+          IMAGE_URI: ${{ steps.build-image.outputs.image }}
+          AWS_ACCOUNT_ID: ${{ steps.login-ecr.outputs.account-id }}
+          AWS_REGION: ${{ secrets.AWS_REGION || 'ap-southeast-1' }}
+        run: |
+          sed -e "s|\${ECR_REPOSITORY_URI}:latest|$IMAGE_URI|g" \
+              -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
+              -e "s|\${AWS_REGION}|$AWS_REGION|g" \
+              infra/ecs-task-definition.json > task-definition.json
+
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: task-definition.json
+          service: ${{ secrets.ECS_SERVICE || 'incident-swarm-api-service' }}
+          cluster: ${{ secrets.ECS_CLUSTER || 'incident-swarm-cluster' }}
+          wait-for-service-stability: true
+
