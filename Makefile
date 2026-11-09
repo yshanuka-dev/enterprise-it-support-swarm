@@ -4,6 +4,8 @@
 # Usage: make <target>
 # =============================================================================
 
+export MSYS_NO_PATHCONV := 1
+
 UV          := uv
 VENV        := .venv
 # Windows path (Git Bash)

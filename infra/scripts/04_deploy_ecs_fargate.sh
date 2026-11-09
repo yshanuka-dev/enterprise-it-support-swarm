@@ -3,6 +3,7 @@
 # Step 4: Deploy ECS Fargate Service & Application Load Balancer (ALB)
 # =============================================================================
 set -euo pipefail
+export MSYS_NO_PATHCONV=1
 
 REGION="${AWS_REGION:-$(aws configure get region || echo "ap-south-1")}"
 CLUSTER_NAME="${ECS_CLUSTER:-incident-swarm-cluster}"
@@ -147,7 +148,7 @@ else
     echo "Creating new service..."
     aws ecs create-service \
         --cluster "${CLUSTER_NAME}" \
-        --service "${SERVICE_NAME}" \
+        --service-name "${SERVICE_NAME}" \
         --task-definition "${TASK_DEF_ARN}" \
         --desired-count 1 \
         --launch-type FARGATE \

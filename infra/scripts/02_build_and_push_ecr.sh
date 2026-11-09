@@ -3,6 +3,7 @@
 # Step 2: Build & Push Docker Image to Amazon ECR
 # =============================================================================
 set -euo pipefail
+export MSYS_NO_PATHCONV=1
 
 REPO_NAME="${ECR_REPOSITORY:-incident-swarm-api}"
 REGION="${AWS_REGION:-$(aws configure get region || echo "ap-south-1")}"

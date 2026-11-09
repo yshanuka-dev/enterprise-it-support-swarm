@@ -3,6 +3,7 @@
 # Step 1: Create Amazon ECR Repository for Incident Swarm API
 # =============================================================================
 set -euo pipefail
+export MSYS_NO_PATHCONV=1
 
 REPO_NAME="${ECR_REPOSITORY:-incident-swarm-api}"
 REGION="${AWS_REGION:-$(aws configure get region || echo "ap-south-1")}"

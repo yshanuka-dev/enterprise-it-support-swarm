@@ -23,7 +23,7 @@
       "environment": [
         {
           "name": "AWS_REGION",
-          "value": "ap-southeast-1"
+          "value": "${AWS_REGION}"
         },
         {
           "name": "PORT",
@@ -40,6 +40,10 @@
           "valueFrom": "arn:aws:ssm:${AWS_REGION}:${AWS_ACCOUNT_ID}:parameter/incident-swarm/GOOGLE_API_KEY"
         },
         {
+          "name": "GROQ_API_KEY",
+          "valueFrom": "arn:aws:ssm:${AWS_REGION}:${AWS_ACCOUNT_ID}:parameter/incident-swarm/GROQ_API_KEY"
+        },
+        {
           "name": "QDRANT_URL",
           "valueFrom": "arn:aws:ssm:${AWS_REGION}:${AWS_ACCOUNT_ID}:parameter/incident-swarm/QDRANT_URL"
         },
@@ -54,18 +58,6 @@
         {
           "name": "LANGFUSE_SECRET_KEY",
           "valueFrom": "arn:aws:ssm:${AWS_REGION}:${AWS_ACCOUNT_ID}:parameter/incident-swarm/LANGFUSE_SECRET_KEY"
-        },
-        {
-          "name": "LIVEKIT_URL",
-          "valueFrom": "arn:aws:ssm:${AWS_REGION}:${AWS_ACCOUNT_ID}:parameter/incident-swarm/LIVEKIT_URL"
-        },
-        {
-          "name": "LIVEKIT_API_KEY",
-          "valueFrom": "arn:aws:ssm:${AWS_REGION}:${AWS_ACCOUNT_ID}:parameter/incident-swarm/LIVEKIT_API_KEY"
-        },
-        {
-          "name": "LIVEKIT_API_SECRET",
-          "valueFrom": "arn:aws:ssm:${AWS_REGION}:${AWS_ACCOUNT_ID}:parameter/incident-swarm/LIVEKIT_API_SECRET"
         }
       ],
       "healthCheck": {
@@ -82,7 +74,7 @@
         "logDriver": "awslogs",
         "options": {
           "awslogs-group": "/ecs/incident-swarm-api",
-          "awslogs-region": "ap-southeast-1",
+          "awslogs-region": "${AWS_REGION}",
           "awslogs-stream-prefix": "api",
           "awslogs-create-group": "true"
         }

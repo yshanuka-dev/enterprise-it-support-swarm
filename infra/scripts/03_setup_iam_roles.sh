@@ -3,6 +3,7 @@
 # Step 3: Setup IAM Execution and Task Roles for ECS Fargate
 # =============================================================================
 set -euo pipefail
+export MSYS_NO_PATHCONV=1
 
 REGION="${AWS_REGION:-$(aws configure get region || echo "ap-south-1")}"
 EXEC_ROLE_NAME="ecsTaskExecutionRole"
