@@ -306,6 +306,22 @@ aws-ecs-deploy:
 aws-verify:
 	bash infra/scripts/05_verify_deployment.sh
 
+.PHONY: aws-stop
+aws-stop:
+	@echo "Pausing Fargate container (desired-count=0)..."
+	aws ecs update-service --cluster incident-swarm-cluster --service incident-swarm-api-service --desired-count 0 --region $$(aws configure get region || echo "ap-south-1") >/dev/null
+	@echo "✅ Fargate container paused. No compute charges while paused."
+
+.PHONY: aws-start
+aws-start:
+	@echo "Resuming Fargate container (desired-count=1)..."
+	aws ecs update-service --cluster incident-swarm-cluster --service incident-swarm-api-service --desired-count 1 --region $$(aws configure get region || echo "ap-south-1") >/dev/null
+	@echo "✅ Fargate container resumed."
+
+.PHONY: aws-destroy
+aws-destroy:
+	bash infra/scripts/99_teardown_aws.sh
+
 # ---------------------------------------------------------------------------
 # QUALITY
 # ---------------------------------------------------------------------------
