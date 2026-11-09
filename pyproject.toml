@@ -14,6 +14,7 @@ dependencies = [
     "qdrant-client>=1.10",
     "fastembed>=0.3",
     "groq",
+    "openai>=1.0",
     "langgraph>=0.2",
     "fastapi>=0.110",
     "uvicorn>=0.28",

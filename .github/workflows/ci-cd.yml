@@ -38,7 +38,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv pip install --system -e ".[dev]"
+        run: uv sync --all-extras --dev
 
       - name: Run Ruff Linter
         run: uv run ruff check src tests scripts
@@ -48,7 +48,7 @@ jobs:
           DATABASE_URL: "postgresql://swarm:testpass@localhost:5432/ops_db"
           AWS_ACCESS_KEY_ID: "testing"
           AWS_SECRET_ACCESS_KEY: "testing"
-          AWS_REGION: "ap-southeast-1"
+          AWS_REGION: "ap-south-1"
         run: uv run pytest -v
 
   # ---------------------------------------------------------------------------
@@ -67,7 +67,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ secrets.AWS_REGION || 'ap-southeast-1' }}
+          aws-region: ${{ secrets.AWS_REGION || 'ap-south-1' }}
           role-session-name: GitHubActions-ECR-ECS-Deploy
 
       - name: Log in to Amazon ECR
@@ -95,7 +95,7 @@ jobs:
         env:
           IMAGE_URI: ${{ steps.build-image.outputs.image }}
           AWS_ACCOUNT_ID: ${{ steps.login-ecr.outputs.account-id }}
-          AWS_REGION: ${{ secrets.AWS_REGION || 'ap-southeast-1' }}
+          AWS_REGION: ${{ secrets.AWS_REGION || 'ap-south-1' }}
         run: |
           sed -e "s|\${ECR_REPOSITORY_URI}:latest|$IMAGE_URI|g" \
               -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
