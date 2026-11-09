@@ -7,7 +7,7 @@ Langfuse observability and an AWS ECS Fargate deployment.
 
 > Status: Day 1 (foundation). Architecture diagram, setup details and results will be added as the build progresses.
 
-## Quick start (local)
+## Quick start (local) 
 
 ```bash
 cp .env.example .env            # set POSTGRES_PASSWORD and DATABASE_URL to match
