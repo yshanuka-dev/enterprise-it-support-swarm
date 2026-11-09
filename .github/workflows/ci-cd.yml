@@ -7,8 +7,7 @@ on:
     branches: [main]
 
 permissions:
-  id-token: write   # Required for requesting the JWT token for AWS OIDC authentication
-  contents: read    # Required for actions/checkout
+  contents: read
 
 jobs:
   # ---------------------------------------------------------------------------
