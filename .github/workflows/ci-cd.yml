@@ -93,9 +93,9 @@ jobs:
         id: render-task-def
         env:
           IMAGE_URI: ${{ steps.build-image.outputs.image }}
-          AWS_ACCOUNT_ID: ${{ steps.login-ecr.outputs.account-id }}
           AWS_REGION: ${{ secrets.AWS_REGION || 'ap-south-1' }}
         run: |
+          AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
           sed -e "s|\${ECR_REPOSITORY_URI}:latest|$IMAGE_URI|g" \
               -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
               -e "s|\${AWS_REGION}|$AWS_REGION|g" \
