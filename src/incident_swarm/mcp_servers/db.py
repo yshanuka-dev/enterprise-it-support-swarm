@@ -241,6 +241,7 @@ class DatabaseManager:
         self.metrics: list[dict[str, Any]] = [dict(m) for m in _DEFAULT_METRICS]
         self.assets: list[dict[str, Any]] = [dict(a) for a in _DEFAULT_ASSETS]
         self.clearances: list[dict[str, Any]] = [dict(c) for c in _DEFAULT_CLEARANCES]
+        self.audit_logs: list[dict[str, Any]] = []
 
     def is_live(self) -> bool:
         """Check if live PostgreSQL connection is usable."""
@@ -670,6 +671,121 @@ class DatabaseManager:
                 )
 
         return anomalies
+
+    # -------------------------------------------------------------------------
+    # Action & Audit Operations (Day 9)
+    # -------------------------------------------------------------------------
+    def log_action(
+        self,
+        action_type: str,
+        target_resource: str,
+        requested_by: str,
+        dry_run: bool,
+        clearance_granted: bool,
+        status: str,
+        details: str = "",
+    ) -> dict[str, Any]:
+        """Record an administrative action execution in the audit trail."""
+        now = datetime.now().isoformat()
+        record = {
+            "action_type": action_type,
+            "target_resource": target_resource,
+            "requested_by": requested_by,
+            "dry_run": dry_run,
+            "clearance_granted": clearance_granted,
+            "status": status,
+            "details": details,
+            "executed_at": now,
+        }
+
+        if self.is_live():
+            import psycopg
+            from psycopg.rows import dict_row
+
+            try:
+                with psycopg.connect(self.dsn, row_factory=dict_row) as conn, conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO action_audit_log (action_type, target_resource, requested_by, dry_run, clearance_granted, status, details, executed_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                        RETURNING *;
+                        """,
+                        (action_type, target_resource, requested_by, dry_run, clearance_granted, status, details),
+                    )
+                    row = cur.fetchone()
+                    conn.commit()
+                    return dict(row) if row else record
+            except Exception as e:  # noqa: BLE001
+                log.warning("Could not write audit log to PostgreSQL: %s", e)
+
+        self.audit_logs.append(record)
+        return record
+
+    def get_audit_logs(
+        self, target_resource: str | None = None, limit: int = 20
+    ) -> list[dict[str, Any]]:
+        """Fetch historical audit log entries."""
+        if self.is_live():
+            import psycopg
+            from psycopg.rows import dict_row
+
+            try:
+                with psycopg.connect(self.dsn, row_factory=dict_row) as conn, conn.cursor() as cur:
+                    if target_resource:
+                        cur.execute(
+                            "SELECT * FROM action_audit_log WHERE target_resource ILIKE %s ORDER BY executed_at DESC LIMIT %s;",
+                            (f"%{target_resource}%", limit),
+                        )
+                    else:
+                        cur.execute(
+                            "SELECT * FROM action_audit_log ORDER BY executed_at DESC LIMIT %s;",
+                            (limit,),
+                        )
+                    return [dict(r) for r in cur.fetchall()]
+            except Exception as e:  # noqa: BLE001
+                log.warning("Could not read audit logs from PostgreSQL: %s", e)
+
+        results = []
+        for a in reversed(self.audit_logs):
+            if target_resource and target_resource.lower() not in a["target_resource"].lower():
+                continue
+            results.append(dict(a))
+            if len(results) >= limit:
+                break
+        return results
+
+    def restart_service_record(self, service: str) -> bool:
+        """Simulate service restart: sets status to 'healthy' in state/DB."""
+        if self.is_live():
+            import psycopg
+
+            try:
+                with psycopg.connect(self.dsn) as conn, conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE services SET status = 'healthy', last_deploy = NOW() WHERE name ILIKE %s;",
+                        (service,),
+                    )
+                    conn.commit()
+            except Exception as e:  # noqa: BLE001
+                log.warning("Could not update service status in PostgreSQL: %s", e)
+
+        for s in self.services:
+            if s["name"].lower() == service.lower():
+                s["status"] = "healthy"
+                s["last_deploy"] = datetime.now().isoformat()
+                return True
+        return False
+
+    def clear_cache_record(self, service: str) -> bool:
+        """Simulate cache clear: relieves memory pressure in state/DB."""
+        for m in self.metrics:
+            if service.lower() in m["service_id"].lower():
+                m["memory_percent"] = 42.0
+                m["cpu_percent"] = 35.0
+                m["error_rate_percent"] = 0.05
+                m["status"] = "healthy"
+                return True
+        return False
 
 
 # Global singleton instance

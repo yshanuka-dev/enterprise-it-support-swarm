@@ -31,6 +31,22 @@ CREATE TABLE IF NOT EXISTS user_clearances (
 CREATE INDEX IF NOT EXISTS idx_user_clearances_user_action 
 ON user_clearances(user_id, action_type);
 
+-- 3. Table: action_audit_log
+CREATE TABLE IF NOT EXISTS action_audit_log (
+    id SERIAL PRIMARY KEY,
+    action_type TEXT NOT NULL,
+    target_resource TEXT NOT NULL,
+    requested_by TEXT NOT NULL,
+    dry_run BOOLEAN NOT NULL DEFAULT FALSE,
+    clearance_granted BOOLEAN NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('success', 'failure', 'denied', 'simulated')),
+    details TEXT,
+    executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_action_audit_log_target
+ON action_audit_log(target_resource, executed_at DESC);
+
 -- -----------------------------------------------------------------------------
 -- Seed Data: server_metrics (telemetry samples across key services)
 -- -----------------------------------------------------------------------------
