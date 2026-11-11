@@ -20,6 +20,8 @@ class SwarmState(TypedDict, total=False):
     session_id: str
     channel: Literal["chat", "voice"]
     messages: Annotated[list, add_messages]
+    user_id: str | None
+    asset_id: str | None
 
     # L1 triage
     ticket_type: TicketType
@@ -39,6 +41,7 @@ class SwarmState(TypedDict, total=False):
     clearance_ok: bool | None
     resolution_summary: str | None
     needs_voice_escalation: bool
+    rma_number: str | None
 
     # control and output (reset every turn by the intake node)
     path: list[str]
