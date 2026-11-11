@@ -80,6 +80,52 @@ def default_runbook_search(query: str) -> list[dict]:
     return []
 
 
+def default_procedural_search(query: str, k: int = 3) -> list[dict]:
+    """Retrieve historical incident precedents and apply canonical deduplication."""
+    from incident_swarm.config import ROOT, get_settings
+    from incident_swarm.memory import canonical, procedural
+
+    settings = get_settings()
+    hits: list[dict] = []
+    try:
+        from incident_swarm.memory.embeddings import FastEmbedder
+
+        client = procedural.get_qdrant_client(settings)
+        embedder = FastEmbedder()
+        hits = procedural.search(client, embedder, query, k=k * 3)
+    except Exception:  # noqa: BLE001, S110
+        pass
+
+    if not hits:
+        distilled_file = ROOT / "data" / "distilled_full.jsonl"
+        if distilled_file.exists():
+            import json
+
+            query_words = {w.lower() for w in re.findall(r"\b[A-Za-z0-9\-]+\b", query) if len(w) > 2}
+            scored: list[dict] = []
+            with distilled_file.open("r", encoding="utf-8") as f:
+                for line in f:
+                    if not line.strip():
+                        continue
+                    try:
+                        record = json.loads(line)
+                        text = (
+                            f"{record.get('user_problem', '')} "
+                            f"{record.get('resolved_problem', '')} "
+                            f"{record.get('canonical_title', '')}"
+                        ).lower()
+                        overlap = sum(1 for w in query_words if w in text)
+                        if overlap > 0:
+                            score = min(0.95, 0.40 + 0.10 * overlap)
+                            scored.append({"score": score, **record})
+                    except Exception:  # noqa: BLE001, S112
+                        continue
+            scored.sort(key=lambda x: -x["score"])
+            hits = scored[: k * 4]
+
+    return canonical.collapse_hits(hits, k=k)
+
+
 @dataclass
 class Services:
     """Optional collaborators. Anything left as None falls back to a clearly marked placeholder."""
@@ -87,6 +133,7 @@ class Services:
     cag_lookup: Callable[[str], Any] | None = None       # text -> hit with .entry.answer/.entry.id, or None
     metrics_tool: Callable[[str | None], dict] | None = None   # service -> metrics (Day 8 MCP)
     runbook_search: Callable[[str], list[dict]] | None = None  # query -> cited chunks (Day 5 index)
+    procedural_search: Callable[[str], list[dict]] | None = None  # query -> past resolutions (Day 12 index)
 
 
 # ---- backwards compatible triage helpers ----
@@ -136,7 +183,8 @@ class Nodes:
             "ticket_id": state.get("ticket_id") or f"TKT-{uuid.uuid4().hex[:8].upper()}",
             "hop_count": 1, "path": ["intake"], "tool_retry_count": 0, "tool_error": None,
             "escalated_to_human": False, "escalation_reason": None, "cache_hit": False,
-            "needs_voice_escalation": False, "runbook_citations": [], "reply": "",
+            "needs_voice_escalation": False, "runbook_citations": [], "procedural_citations": [],
+            "reply": "",
         }
 
     def cag_check(self, state: SwarmState) -> dict:
@@ -291,22 +339,27 @@ class Nodes:
         return {**update, "tool_error": None, "evidence": evidence}
 
     def l3_resolver(self, state: SwarmState) -> dict:
-        """Find a runbook, enforce CRAG score threshold, gate clearance, and propose/execute fix."""
+        """Find a runbook, search procedural memory, gate clearance, and propose/execute fix."""
         update = self._hop(state, "l3_resolver")
         ticket_id = state.get("ticket_id", "TKT-UNKNOWN")
         voice = state.get("ticket_type") == "critical_outage"
         user_text = " ".join(user_texts(state))
         search = self.services.runbook_search or default_runbook_search
+        proc_search = self.services.procedural_search or default_procedural_search
 
         citations: list[dict] = search(user_text) if search else []
         if not citations:
             return {
                 **update,
                 "runbook_citations": [],
+                "procedural_citations": [],
                 "escalated_to_human": True,
                 "escalation_reason": "no matching runbook found",
                 "needs_voice_escalation": voice,
             }
+
+        # Query procedural memory (historical incident precedent with canonical deduplication)
+        precedents: list[dict] = proc_search(user_text) if proc_search else []
 
         top = citations[0]
         runbook_id = top.get("runbook_id", "RB-UNKNOWN")
@@ -325,18 +378,29 @@ class Nodes:
         clearance_res = check_clearance(user_id=user_id, action_type=action_type)
         cleared = clearance_res.get("cleared", False)
 
+        precedent_text = ""
+        if precedents:
+            top_p = precedents[0]
+            count = top_p.get("similar_cases", 1)
+            p_title = top_p.get("canonical_title") or top_p.get("resolved_problem", "")
+            precedent_text = f" (Precedent: {count} similar cases verified under '{p_title}')"
+
         service = state.get("service") or "infrastructure service"
         if cleared:
-            summary = f"Verified fix via {runbook_id} ({section}) for {service}. Clearance confirmed for {user_id}."
+            summary = (
+                f"Verified fix via {runbook_id} ({section}) for {service}. "
+                f"Clearance confirmed for {user_id}.{precedent_text}"
+            )
             reply = (
                 f"{ticket_id}: {state.get('severity')} {state.get('ticket_type')} on {service}. "
                 f"Proposed action: {proposed_action}. Clearance verified ({action_type} approved for {user_id}). "
-                f"Follow {runbook_id} > {section} to restore service stability."
+                f"Follow {runbook_id} > {section} to restore service stability.{precedent_text}"
             )
             update_ticket(ticket_id=ticket_id, status="in_progress", resolution_notes=summary)
             return {
                 **update,
                 "runbook_citations": citations,
+                "procedural_citations": precedents,
                 "proposed_action": proposed_action,
                 "clearance_ok": True,
                 "resolution_summary": summary,
@@ -354,6 +418,7 @@ class Nodes:
         return {
             **update,
             "runbook_citations": citations,
+            "procedural_citations": precedents,
             "proposed_action": proposed_action,
             "clearance_ok": False,
             "resolution_summary": summary,
@@ -362,9 +427,12 @@ class Nodes:
         }
 
     def writeback(self, state: SwarmState) -> dict:
-        """End of a resolved turn: record a summary (episodic and procedural memory arrive Day 12)."""
+        """End of a resolved turn: record episodic summary and persist ticket status."""
         update = self._hop(state, "writeback")
         summary = state.get("resolution_summary") or state.get("proposed_action") or "handled"
+        ticket_id = state.get("ticket_id")
+        if ticket_id and not state.get("escalated_to_human"):
+            update_ticket(ticket_id=ticket_id, status="resolved", resolution_notes=summary)
         return {**update, "resolution_summary": summary}
 
     def escalate_to_human(self, state: SwarmState) -> dict:

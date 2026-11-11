@@ -16,7 +16,12 @@ from pydantic import BaseModel, Field
 
 from incident_swarm.app import tracing
 from incident_swarm.app.graph import build_graph
-from incident_swarm.app.nodes import Services, default_metrics_tool, default_runbook_search
+from incident_swarm.app.nodes import (
+    Services,
+    default_metrics_tool,
+    default_procedural_search,
+    default_runbook_search,
+)
 from incident_swarm.config import ROOT, Settings, get_settings, load_model_config
 from incident_swarm.memory import cag
 
@@ -46,11 +51,12 @@ class ChatResponse(BaseModel):
     escalation_reason: str | None
     needs_voice_escalation: bool
     runbook_citations: list[dict]
+    procedural_citations: list[dict] = Field(default_factory=list)
     path: list[str]
 
 
 def default_services() -> Services:
-    """Production services: CAG FAQ cache, Observability MCP telemetry, and Runbook retrieval."""
+    """Production services: CAG FAQ cache, Observability MCP telemetry, and Runbook/Procedural retrieval."""
     faq = ROOT / "config" / "faq.yaml"
     cag_lookup = None
     if faq.exists():
@@ -63,6 +69,7 @@ def default_services() -> Services:
         cag_lookup=cag_lookup,
         metrics_tool=default_metrics_tool,
         runbook_search=default_runbook_search,
+        procedural_search=default_procedural_search,
     )
 
 
@@ -116,7 +123,9 @@ def create_app(graph=None, settings: Settings | None = None) -> FastAPI:
             cache_hit=state.get("cache_hit", False), escalated_to_human=state.get("escalated_to_human", False),
             escalation_reason=state.get("escalation_reason"),
             needs_voice_escalation=state.get("needs_voice_escalation", False),
-            runbook_citations=state.get("runbook_citations", []), path=state.get("path", []))
+            runbook_citations=state.get("runbook_citations", []),
+            procedural_citations=state.get("procedural_citations", []),
+            path=state.get("path", []))
 
     return app
 

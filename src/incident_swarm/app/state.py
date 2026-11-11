@@ -37,6 +37,7 @@ class SwarmState(TypedDict, total=False):
 
     # L3 resolution
     runbook_citations: list[dict]
+    procedural_citations: list[dict]
     proposed_action: str | None
     clearance_ok: bool | None
     resolution_summary: str | None

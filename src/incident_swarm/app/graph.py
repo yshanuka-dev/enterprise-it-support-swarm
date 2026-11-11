@@ -6,9 +6,9 @@ Loop guards: tool failures are counted (retry, then escalate), every node adds t
 
 from __future__ import annotations
 
-from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 
+from incident_swarm.app.checkpoint import get_checkpointer
 from incident_swarm.app.nodes import Nodes, Services
 from incident_swarm.app.state import SwarmState
 
@@ -17,7 +17,7 @@ DEFAULT_LIMITS = {"max_hops": 8, "max_tool_retries": 3}
 
 def build_graph(services: Services | None = None, limits: dict[str, float] | None = None,
                 checkpointer=None):
-    """Compile the swarm. The checkpointer keeps per-session state (MemorySaver now, Postgres later)."""
+    """Compile the swarm. The checkpointer keeps per-session state (Postgres in prod, MemorySaver in tests)."""
     limits = {**DEFAULT_LIMITS, **(limits or {})}
     nodes = Nodes(services or Services(), limits)
     graph = StateGraph(SwarmState)
@@ -47,4 +47,5 @@ def build_graph(services: Services | None = None, limits: dict[str, float] | Non
     graph.add_edge("writeback", END)
     graph.add_edge("escalate_to_human", END)
 
-    return graph.compile(checkpointer=checkpointer or MemorySaver())
+    saver = checkpointer if checkpointer is not None else get_checkpointer()
+    return graph.compile(checkpointer=saver)
