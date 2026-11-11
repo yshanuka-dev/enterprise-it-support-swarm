@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 from incident_swarm.app import tracing
 from incident_swarm.app.graph import build_graph
-from incident_swarm.app.nodes import Services
+from incident_swarm.app.nodes import Services, default_metrics_tool, default_runbook_search
 from incident_swarm.config import ROOT, Settings, get_settings, load_model_config
 from incident_swarm.memory import cag
 
@@ -50,13 +50,20 @@ class ChatResponse(BaseModel):
 
 
 def default_services() -> Services:
-    """Light services for the skeleton: exact-match FAQ cache only (no vector store needed)."""
+    """Production services: CAG FAQ cache, Observability MCP telemetry, and Runbook retrieval."""
     faq = ROOT / "config" / "faq.yaml"
-    if not faq.exists():
+    cag_lookup = None
+    if faq.exists():
+        entries, _ = cag.load_faq(faq)
+        cag_lookup = cag.FaqCache(entries).lookup
+    else:
         log.warning("config/faq.yaml not found: running without the FAQ cache")
-        return Services()
-    entries, _ = cag.load_faq(faq)
-    return Services(cag_lookup=cag.FaqCache(entries).lookup)
+
+    return Services(
+        cag_lookup=cag_lookup,
+        metrics_tool=default_metrics_tool,
+        runbook_search=default_runbook_search,
+    )
 
 
 def create_app(graph=None, settings: Settings | None = None) -> FastAPI:
