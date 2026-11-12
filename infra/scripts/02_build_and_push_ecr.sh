@@ -26,7 +26,7 @@ aws ecr get-login-password --region "${REGION}" | docker login --username AWS --
 
 # 2. Build Docker image
 echo "🔨 Building Docker image: ${IMAGE_URI}:${GIT_SHA}..."
-docker build -t "${IMAGE_URI}:${GIT_SHA}" -t "${IMAGE_URI}:latest" "${REPO_ROOT}"
+(cd "${REPO_ROOT}" && docker build --platform linux/amd64 -t "${IMAGE_URI}:${GIT_SHA}" -t "${IMAGE_URI}:latest" .)
 
 # 3. Push to ECR with automatic retries for transient network timeouts
 echo "🚀 Pushing image tags to ECR..."

@@ -174,6 +174,9 @@ def triage_message(text: str, settings: Settings | None = None) -> TriageResult:
     app_settings = settings or get_settings()
     llm_result = triage_with_llm(text, app_settings)
     if llm_result is not None:
+        # If the LLM classified ticket_type as unknown, confidence must reflect ambiguity
+        if llm_result.ticket_type == "unknown":
+            llm_result.confidence = min(llm_result.confidence, 0.3)
         entities = extract_entities(text)
         if not llm_result.user_id and entities["user_id"]:
             llm_result.user_id = entities["user_id"]
