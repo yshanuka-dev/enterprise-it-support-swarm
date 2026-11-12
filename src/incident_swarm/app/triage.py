@@ -123,7 +123,7 @@ def triage_with_llm(text: str, settings: Settings) -> TriageResult | None:
 
             client = genai.Client(
                 api_key=settings.google_api_key,
-                http_options={"api_version": "v1beta", "timeout": 4000},
+                http_options={"api_version": "v1beta", "timeout": 10000},
             )
             model_name = load_model_config().tiers.get("triage", "gemini-2.5-flash")
             prompt = (

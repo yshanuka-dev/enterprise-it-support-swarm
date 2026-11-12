@@ -6,6 +6,8 @@ entries:
     runbook: RB-VPN-SESSION
     questions:
       - How do I reset my VPN?
+      - How to reset VPN?
+      - How do I reset VPN?
       - My VPN won't connect
       - VPN keeps failing to connect after it dropped
       - VPN session is stuck

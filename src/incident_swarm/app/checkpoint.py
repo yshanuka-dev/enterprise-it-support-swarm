@@ -24,8 +24,8 @@ def get_checkpointer(settings: Settings | None = None) -> BaseCheckpointSaver:
         try:
             import psycopg
 
-            # Probe connectivity with short timeout
-            with psycopg.connect(app_settings.database_url, connect_timeout=2) as conn:
+            # Probe connectivity with 1-second timeout
+            with psycopg.connect(app_settings.database_url, connect_timeout=1) as conn:
                 with conn.cursor() as cur:
                     cur.execute("SELECT 1;")
 
@@ -41,7 +41,8 @@ def get_checkpointer(settings: Settings | None = None) -> BaseCheckpointSaver:
             checkpointer.setup()
             log.info("Initialized PostgreSQL checkpointer for episodic memory.")
             return checkpointer
-        except Exception as exc:  # noqa: BLE001
-            log.warning("Postgres unavailable for checkpointing (%s); using MemorySaver fallback.", exc)
+        except Exception:  # noqa: BLE001
+            log.info("Postgres unreachable; using MemorySaver checkpoint fallback.")
 
     return MemorySaver()
+
