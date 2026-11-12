@@ -348,20 +348,42 @@ class Nodes:
         proc_search = self.services.procedural_search or default_procedural_search
 
         citations: list[dict] = search(user_text) if search else []
-        if not citations:
+        
+        # CRAG Gating: Filter out citations with poor semantic scores or domain mismatches
+        # E.g. If user text is software degradation/reboot, do not cite RB-HARDWARE
+        valid_citations = []
+        is_software_query = bool(re.search(r"\b(software|reboot|restart|crash|driver|os|freeze|bsod)\b", user_text, re.I))
+        for c in citations:
+            score = c.get("score", 0.0)
+            rb_id = c.get("runbook_id", "")
+            # Reject hardware runbooks when user explicitly reports a software issue
+            if is_software_query and "HARDWARE" in rb_id:
+                continue
+            # CRAG score threshold: must have reasonable semantic relevance (>= 0.35)
+            if score >= 0.35:
+                valid_citations.append(c)
+
+        if not valid_citations:
+            reason = "no matching runbook found"
+            reply = (
+                f"⚠️ **Incident {ticket_id}**: No verified SOP runbook found for this specific issue.\n\n"
+                f"• **Reason**: {reason}.\n"
+                f"• **Next Step**: Escalated to an on-call IT Service Desk specialist for manual investigation."
+            )
             return {
                 **update,
                 "runbook_citations": [],
                 "procedural_citations": [],
                 "escalated_to_human": True,
-                "escalation_reason": "no matching runbook found",
+                "escalation_reason": reason,
                 "needs_voice_escalation": voice,
+                **_say(reply),
             }
 
         # Query procedural memory (historical incident precedent with canonical deduplication)
         precedents: list[dict] = proc_search(user_text) if proc_search else []
 
-        top = citations[0]
+        top = valid_citations[0]
         runbook_id = top.get("runbook_id", "RB-UNKNOWN")
         section = top.get("section", "Remediation")
         proposed_action = f"Follow {runbook_id} > {section}"

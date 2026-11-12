@@ -83,6 +83,22 @@ def extract_entities(text: str) -> dict[str, str | None]:
 def classify_by_rules(text: str) -> TriageResult:
     """Fast, deterministic fallback classifier based on keyword regex rules."""
     entities = extract_entities(text)
+
+    # Check for explicit software/restart intent vs hardware
+    is_explicit_software = bool(re.search(r"\b(software|reboot|restart|restarting|freeze|crash|bsod)\b", text, re.I))
+    has_negated_hardware = bool(re.search(r"\b(not|n't|don't)\s+(?:think\s+)?(?:it's\s+|it\s+is\s+|a\s+)?hardware\b", text, re.I))
+
+    if is_explicit_software or has_negated_hardware:
+        return TriageResult(
+            ticket_type="service_degradation",
+            severity="medium",
+            service=entities["service"],
+            confidence=0.85,
+            reasoning="Rule classifier: Software/OS restart issue identified (hardware negated)",
+            user_id=entities["user_id"],
+            asset_id=entities["asset_id"],
+        )
+
     matched = [(t, s) for t, s, pattern in TRIAGE_RULES if pattern.search(text)]
 
     if not matched:
@@ -151,7 +167,32 @@ def triage_with_llm(text: str, settings: Settings) -> TriageResult | None:
             if response.text:
                 return TriageResult.model_validate_json(response.text)
     except Exception as exc:  # noqa: BLE001
-        log.warning("LLM structured triage failed (%s); using rule classifier fallback.", exc)
+        log.warning("LLM structured triage failed (%s); attempting Groq fallback.", exc)
+
+    # Secondary fallback to Groq if Gemini hits rate-limits (429)
+    if settings.groq_api_key:
+        try:
+            from groq import Groq
+            client = Groq(api_key=settings.groq_api_key)
+            prompt = (
+                "You are an L1 IT Support Triage agent. Analyze the user message and return a JSON object with: "
+                "ticket_type (critical_outage, service_degradation, asset_provisioning, access_identity, unknown), "
+                "severity (critical, medium, low, unknown), service (string or null), confidence (0.0-1.0), "
+                "reasoning (string), user_id (e.g. EMP-0012 or null), asset_id (e.g. AST-0014 or null).\n"
+                "Note: Do not classify software/OS restart/freeze as asset_provisioning.\n\n"
+                f"User Message: {text}"
+            )
+            chat_completion = client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model="llama-3.3-70b-versatile",
+                response_format={"type": "json_object"},
+                temperature=0.1,
+            )
+            content = chat_completion.choices[0].message.content
+            if content:
+                return TriageResult.model_validate_json(content)
+        except Exception as groq_exc:  # noqa: BLE001
+            log.warning("Groq structured triage fallback also failed (%s)", groq_exc)
 
     return None
 
