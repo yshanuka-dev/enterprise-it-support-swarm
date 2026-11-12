@@ -386,16 +386,21 @@ class Nodes:
             precedent_text = f" (Precedent: {count} similar cases verified under '{p_title}')"
 
         service = state.get("service") or "infrastructure service"
+        sev_label = (state.get("severity") or "high").upper()
+        type_label = (state.get("ticket_type") or "incident").replace("_", " ")
+
         if cleared:
             summary = (
                 f"Verified fix via {runbook_id} ({section}) for {service}. "
                 f"Clearance confirmed for {user_id}.{precedent_text}"
             )
             reply = (
-                f"{ticket_id}: {state.get('severity')} {state.get('ticket_type')} on {service}. "
-                f"Proposed action: {proposed_action}. Clearance verified ({action_type} approved for {user_id}). "
-                f"Follow {runbook_id} > {section} to restore service stability.{precedent_text}"
-            )
+                f"🚨 **Incident {ticket_id}** [{sev_label}]: Outage detected on **{service}**.\n\n"
+                f"• **Remediation Plan**: Following standard operating procedure **{runbook_id}** ({section}).\n"
+                f"• **Clearance Status**: Clearance verified (`{action_type}` approved for employee `{user_id}`).\n"
+                f"• **Next Step**: Executing remediation protocol to restore service stability.\n"
+                f"{'• **Historical Reference**:' + precedent_text if precedent_text else ''}"
+            ).strip()
             update_ticket(ticket_id=ticket_id, status="in_progress", resolution_notes=summary)
             return {
                 **update,
@@ -410,9 +415,10 @@ class Nodes:
 
         summary = f"Fix identified in {runbook_id} ({section}), but {user_id} lacks clearance for {action_type}."
         reply = (
-            f"{ticket_id}: Identified remediation in {runbook_id} > {section}. "
-            f"However, user {user_id} lacks DevOps clearance to execute '{action_type}'. "
-            "An escalation request has been submitted to on-call DevOps."
+            f"⚠️ **Incident {ticket_id}** [{sev_label}]: Outage detected on **{service}**.\n\n"
+            f"• **Identified SOP**: {runbook_id} ({section}).\n"
+            f"• **Clearance Notice**: User `{user_id}` lacks DevOps clearance for action `{action_type}`.\n"
+            f"• **Action Taken**: Escalation ticket routed directly to the on-call DevOps engineering team."
         )
         update_ticket(ticket_id=ticket_id, status="escalated", resolution_notes=summary)
         return {
