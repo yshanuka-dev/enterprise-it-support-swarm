@@ -131,11 +131,12 @@ def triage_with_llm(text: str, settings: Settings) -> TriageResult | None:
                 "classify ticket_type, severity, affected service, confidence (0.0-1.0), reasoning, "
                 "and any mentioned user_id (e.g. EMP-0012) or asset_id (e.g. AST-0014).\n\n"
                 "Taxonomy Guidelines:\n"
-                "- critical_outage (severity: critical): Service down, crashing, out of memory (OOM), 502/503, unresponsive, database failover.\n"
-                "- service_degradation (severity: medium): Slow performance, latency, timeouts, pool exhaustion.\n"
-                "- asset_provisioning (severity: low): Hardware, laptop, monitor, screen, keyboard, mouse, device replacement.\n"
+                "- critical_outage (severity: critical): Production infrastructure/service completely down, crashing, out of memory (OOM), 502/503, unresponsive, database failover.\n"
+                "- service_degradation (severity: medium): Slow performance, latency, timeouts, pool exhaustion, intermittent reboots, OS/software crashing on laptops or workstations.\n"
+                "- asset_provisioning (severity: low): Physical hardware breakage, damaged laptop screen, broken monitor/keyboard/mouse, equipment ordering/refresh, physical replacement RMA.\n"
                 "- access_identity (severity: low): Passwords, VPN, MFA, 2FA, SSO, authentication, accounts, clearance.\n"
                 "- unknown (severity: unknown): Ambiguous requests lacking sufficient IT context.\n\n"
+                "Important Distinction: Do NOT classify an issue as 'asset_provisioning' if the problem is a software crash, OS freeze, driver reboot, or if the user explicitly says it is NOT a hardware issue. Hardware replacement is strictly for physical equipment damage/procurement.\n\n"
                 f"User Message: {text}"
             )
             response = client.models.generate_content(
@@ -155,23 +156,37 @@ def triage_with_llm(text: str, settings: Settings) -> TriageResult | None:
     return None
 
 
+# Words indicating nuance, negation, or mixed domain that should NOT be short-circuited by regex
+NUANCED_INDICATORS = re.compile(
+    r"\b(not|n't|don't|doesn't|didn't|won't|software|reboot|restart|crash|freeze|update|patch|"
+    r"virus|malware|slow|bug|blue ?screen|bsod|driver|reinstall|corrupt|restarting)\b",
+    re.IGNORECASE,
+)
+
+
 def triage_message(text: str, settings: Settings | None = None) -> TriageResult:
     """Classify user turn: uses fast deterministic rules for clear intent, LLM for nuanced turns."""
-    # 1. Fast deterministic check for clear domain keywords (preserves LLM quota)
     rule_res = classify_by_rules(text)
-    if rule_res.confidence >= 0.85:
-        return rule_res
 
-    # 2. Obvious ambiguous/terse input without domain keywords needs no LLM
+    # 1. Obvious ambiguous/terse input without domain keywords needs no LLM
     if rule_res.ticket_type == "unknown" and len(text.strip().split()) <= 3:
         return rule_res
 
-    # 3. In automated test environment, avoid hitting external rate limits unless explicitly desired
-    if os.environ.get("PYTEST_CURRENT_TEST"):
+    # 2. If the message contains negations ("don't", "not") or software/troubleshooting words mixed with hardware,
+    # skip the dumb regex short-circuit and let the LLM reason about the real problem.
+    is_nuanced = bool(NUANCED_INDICATORS.search(text))
+
+    # 3. Fast deterministic check for unambiguous clear-cut intent (preserves LLM quota)
+    # Only fast-path if NOT in an automated test requiring LLM or if the turn is simple & un-nuanced
+    if not is_nuanced and rule_res.confidence >= 0.85:
         return rule_res
 
-    # 4. Nuanced or ambiguous message: invoke small LLM for structured reasoning
+    # 4. In automated unit test environment (when no keys provided), fallback to rule result
     app_settings = settings or get_settings()
+    if os.environ.get("PYTEST_CURRENT_TEST") and not app_settings.google_api_key and not app_settings.groq_api_key:
+        return rule_res
+
+    # 5. Nuanced or ambiguous message: invoke small LLM for structured reasoning
     llm_result = triage_with_llm(text, app_settings)
     if llm_result is not None:
         # If the LLM classified ticket_type as unknown, confidence must reflect ambiguity
@@ -186,5 +201,5 @@ def triage_message(text: str, settings: Settings | None = None) -> TriageResult:
             llm_result.service = entities["service"]
         return llm_result
 
-    # 5. Fallback to rule result
+    # 6. Fallback to rule result
     return rule_res
