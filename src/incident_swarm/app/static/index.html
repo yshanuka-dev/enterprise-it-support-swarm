@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enterprise IT Incident Swarm - Ops Console</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Custom scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    .pulse-glow { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  </style>
+</head>
+<body class="h-full flex flex-col overflow-hidden antialiased font-sans select-none">
+
+  <!-- Header -->
+  <header class="h-16 border-b border-slate-800 bg-slate-900/80 backdrop-blur px-6 flex items-center justify-between z-10 shrink-0">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+        <i class="fa-solid fa-microchip text-white text-lg"></i>
+      </div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <h1 class="font-bold text-base tracking-wide text-white">IT Incident Resolution Swarm</h1>
+          <span class="px-2 py-0.5 text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 rounded-full">v0.1.0 Enterprise</span>
+        </div>
+        <p class="text-xs text-slate-400">Multi-Agent Tiered Architecture &bull; CRAG &bull; FastMCP Telemetry &bull; Procedural Memory</p>
+      </div>
+    </div>
+
+    <!-- Cluster Status Indicators -->
+    <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-2 text-xs text-slate-300 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700/60">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+        <span class="font-medium text-emerald-400">Cluster Online</span>
+      </div>
+      <div id="tracing-badge" class="flex items-center space-x-1.5 text-xs text-slate-400 bg-slate-800/50 px-2.5 py-1.5 rounded-lg border border-slate-800">
+        <i class="fa-solid fa-chart-line text-cyan-400"></i>
+        <span>Langfuse Tracing</span>
+      </div>
+      <button onclick="resetSession()" class="px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition border border-slate-700">
+        <i class="fa-solid fa-rotate-right mr-1.5 text-slate-400"></i>New Session
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Body: 2 Columns -->
+  <div class="flex-1 flex overflow-hidden">
+    
+    <!-- Left Column: Chat Conversation -->
+    <section class="w-1/2 flex flex-col border-r border-slate-800 bg-slate-950/50">
+      
+      <!-- Quick Prompts Toolbar -->
+      <div class="px-6 py-3 border-b border-slate-800/80 bg-slate-900/40">
+        <div class="text-xs font-semibold text-slate-400 mb-2 flex items-center justify-between">
+          <span><i class="fa-solid fa-bolt text-amber-400 mr-1.5"></i>Quick Scenario Prompts (Section 11)</span>
+          <span class="text-[10px] text-slate-500">Click to run</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="setPrompt('How to reset VPN?')" class="px-2.5 py-1 text-xs bg-slate-800/90 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-300 hover:text-indigo-200 border border-slate-700/80 rounded-md transition text-left">
+            ⚡ VPN FAQ (CAG)
+          </button>
+          <button onclick="setPrompt('auth-db is down and rejecting connections')" class="px-2.5 py-1 text-xs bg-slate-800/90 hover:bg-rose-600/30 hover:border-rose-500/50 text-slate-300 hover:text-rose-200 border border-slate-700/80 rounded-md transition text-left">
+            🔥 auth-db Down (L1-L3)
+          </button>
+          <button onclick="setPrompt('Redis is out of memory on prod-cache-01')" class="px-2.5 py-1 text-xs bg-slate-800/90 hover:bg-amber-600/30 hover:border-amber-500/50 text-slate-300 hover:text-amber-200 border border-slate-700/80 rounded-md transition text-left">
+            📖 Redis OOM (Runbook)
+          </button>
+          <button onclick="setPrompt('The cache memory is full and rejecting keys')" class="px-2.5 py-1 text-xs bg-slate-800/90 hover:bg-purple-600/30 hover:border-purple-500/50 text-slate-300 hover:text-purple-200 border border-slate-700/80 rounded-md transition text-left">
+            🧠 Memory Recall (Precedents)
+          </button>
+          <button onclick="setPrompt('My laptop screen AST-0014 has dead pixels and is cracked')" class="px-2.5 py-1 text-xs bg-slate-800/90 hover:bg-blue-600/30 hover:border-blue-500/50 text-slate-300 hover:text-blue-200 border border-slate-700/80 rounded-md transition text-left">
+            💻 Laptop RMA (Asset)
+          </button>
+          <button onclick="setPrompt('it is broken')" class="px-2.5 py-1 text-xs bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 rounded-md transition text-left">
+            ❓ Ambiguity Clarify
+          </button>
+        </div>
+      </div>
+
+      <!-- Messages Thread -->
+      <div id="messages-container" class="flex-1 overflow-y-auto p-6 space-y-4">
+        <!-- System Greeting -->
+        <div class="flex items-start space-x-3">
+          <div class="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-robot text-indigo-400 text-xs"></i>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-4 max-w-[85%] text-sm text-slate-200 shadow-sm leading-relaxed">
+            <p class="font-medium text-indigo-300 mb-1">Incident Resolution Swarm Active</p>
+            Hello! I am your autonomous enterprise IT support agent. You can ask routine FAQ questions, report infrastructure outages, or request hardware replacements. How can I assist you today?
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Box -->
+      <div class="p-4 border-t border-slate-800 bg-slate-900/30">
+        <form id="chat-form" onsubmit="sendMessage(event)" class="relative flex items-center">
+          <div class="flex items-center space-x-2 mr-3">
+            <label title="Select channel" class="flex items-center text-xs text-slate-400 bg-slate-800 px-2 py-1.5 rounded-lg border border-slate-700 cursor-pointer">
+              <input type="checkbox" id="voice-channel-toggle" class="mr-1.5 rounded text-indigo-600 focus:ring-0">
+              <i class="fa-solid fa-phone text-xs mr-1 text-slate-400"></i>
+              <span>Voice</span>
+            </label>
+          </div>
+          <input 
+            type="text" 
+            id="message-input" 
+            placeholder="Describe your IT issue (e.g., 'Redis is out of memory on prod-cache-01')..."
+            autocomplete="off"
+            class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 pr-12 transition shadow-inner"
+          />
+          <button 
+            type="submit" 
+            id="send-btn"
+            class="absolute right-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
+            <i class="fa-solid fa-arrow-up text-xs"></i>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Right Column: Swarm Inspector & Telemetry -->
+    <section class="w-1/2 flex flex-col bg-slate-900/20 overflow-y-auto p-6 space-y-6">
+      
+      <!-- Execution Overview Card -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-sm font-semibold text-slate-200 flex items-center">
+            <i class="fa-solid fa-network-wired text-indigo-400 mr-2"></i>Swarm Routing & Execution Graph
+          </h2>
+          <span id="stat-latency" class="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">0 ms</span>
+        </div>
+
+        <!-- Node Stepper -->
+        <div id="graph-steps" class="flex items-center space-x-1.5 overflow-x-auto py-2">
+          <div class="px-3 py-1.5 rounded-md text-xs font-mono bg-slate-800 border border-slate-700 text-slate-400">Idle</div>
+        </div>
+      </div>
+
+      <!-- Ticket & Classification Meta Grid -->
+      <div class="grid grid-cols-2 gap-4">
+        
+        <!-- Ticket Meta -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+          <div class="text-xs font-semibold text-slate-400 mb-2 flex items-center justify-between">
+            <span><i class="fa-solid fa-ticket text-indigo-400 mr-1.5"></i>Active Incident Ticket</span>
+            <span id="badge-ticket-id" class="font-mono text-indigo-300 font-bold">---</span>
+          </div>
+          <div class="space-y-1.5 text-xs">
+            <div class="flex justify-between text-slate-400">
+              <span>Category:</span>
+              <span id="meta-type" class="text-slate-200 font-medium">---</span>
+            </div>
+            <div class="flex justify-between text-slate-400">
+              <span>Severity:</span>
+              <span id="meta-severity" class="font-medium">---</span>
+            </div>
+            <div class="flex justify-between text-slate-400">
+              <span>Affected Service:</span>
+              <span id="meta-service" class="text-slate-200 font-mono">---</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Escalation & Guardrails -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+          <div class="text-xs font-semibold text-slate-400 mb-2 flex items-center justify-between">
+            <span><i class="fa-solid fa-shield-halved text-cyan-400 mr-1.5"></i>Guardrails & Clearance</span>
+          </div>
+          <div class="space-y-1.5 text-xs">
+            <div class="flex justify-between text-slate-400">
+              <span>CAG Fast Path:</span>
+              <span id="meta-cag" class="font-medium text-slate-300">No</span>
+            </div>
+            <div class="flex justify-between text-slate-400">
+              <span>Voice Escalation:</span>
+              <span id="meta-voice-esc" class="font-medium text-slate-300">False</span>
+            </div>
+            <div class="flex justify-between text-slate-400">
+              <span>Human Handover:</span>
+              <span id="meta-human-esc" class="font-medium text-slate-300">No</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grounding: Runbooks (CRAG) -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+        <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center">
+          <i class="fa-solid fa-book-bookmark text-emerald-400 mr-2"></i>Cited Runbooks (Corrective RAG)
+        </h3>
+        <div id="runbooks-container" class="space-y-2">
+          <p class="text-xs text-slate-500 italic">No runbooks cited for the current prompt.</p>
+        </div>
+      </div>
+
+      <!-- Grounding: Procedural Memory (Qdrant Precedents) -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+        <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center">
+          <i class="fa-solid fa-brain text-purple-400 mr-2"></i>Procedural Memory Precedents (Vector Search)
+        </h3>
+        <div id="procedural-container" class="space-y-2">
+          <p class="text-xs text-slate-500 italic">No historical precedents retrieved.</p>
+        </div>
+      </div>
+
+    </section>
+  </div>
+
+  <script>
+    let currentSessionId = 'sess-' + Math.random().toString(36).substring(2, 10);
+
+    function setPrompt(text) {
+      document.getElementById('message-input').value = text;
+      document.getElementById('message-input').focus();
+    }
+
+    function resetSession() {
+      currentSessionId = 'sess-' + Math.random().toString(36).substring(2, 10);
+      const container = document.getElementById('messages-container');
+      container.innerHTML = `
+        <div class="flex items-start space-x-3">
+          <div class="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-robot text-indigo-400 text-xs"></i>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-4 max-w-[85%] text-sm text-slate-200 shadow-sm leading-relaxed">
+            <p class="font-medium text-indigo-300 mb-1">New Session Started</p>
+            Session cleared. Ready for your next query or outage report.
+          </div>
+        </div>
+      `;
+      clearInspector();
+    }
+
+    function clearInspector() {
+      document.getElementById('stat-latency').innerText = '0 ms';
+      document.getElementById('graph-steps').innerHTML = '<div class="px-3 py-1.5 rounded-md text-xs font-mono bg-slate-800 border border-slate-700 text-slate-400">Idle</div>';
+      document.getElementById('badge-ticket-id').innerText = '---';
+      document.getElementById('meta-type').innerText = '---';
+      document.getElementById('meta-severity').innerText = '---';
+      document.getElementById('meta-service').innerText = '---';
+      document.getElementById('meta-cag').innerText = 'No';
+      document.getElementById('meta-voice-esc').innerText = 'False';
+      document.getElementById('meta-human-esc').innerText = 'No';
+      document.getElementById('runbooks-container').innerHTML = '<p class="text-xs text-slate-500 italic">No runbooks cited for the current prompt.</p>';
+      document.getElementById('procedural-container').innerHTML = '<p class="text-xs text-slate-500 italic">No historical precedents retrieved.</p>';
+    }
+
+    async function sendMessage(e) {
+      e.preventDefault();
+      const input = document.getElementById('message-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const channel = document.getElementById('voice-channel-toggle').checked ? 'voice' : 'chat';
+      input.value = '';
+      document.getElementById('send-btn').disabled = true;
+
+      // Append User message
+      appendUserMessage(text, channel);
+
+      // Loading bubble
+      const loadingId = appendLoadingBubble();
+
+      const startTime = performance.now();
+      try {
+        const response = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: text,
+            session_id: currentSessionId,
+            channel: channel
+          })
+        });
+
+        const data = await response.json();
+        const duration = Math.round(performance.now() - startTime);
+
+        // Remove loading bubble
+        document.getElementById(loadingId)?.remove();
+
+        // Append Agent Reply
+        appendAgentReply(data);
+
+        // Update Inspector
+        updateInspector(data, duration);
+
+      } catch (err) {
+        document.getElementById(loadingId)?.remove();
+        appendErrorMessage('Failed to connect to agent swarm: ' + err.message);
+      } finally {
+        document.getElementById('send-btn').disabled = false;
+      }
+    }
+
+    function appendUserMessage(text, channel) {
+      const container = document.getElementById('messages-container');
+      const div = document.createElement('div');
+      div.className = 'flex items-start justify-end space-x-3';
+      div.innerHTML = `
+        <div class="bg-indigo-600 text-white rounded-2xl rounded-tr-none p-3.5 max-w-[80%] text-sm shadow-md leading-relaxed">
+          ${channel === 'voice' ? '<span class="px-1.5 py-0.5 mr-1.5 text-[10px] bg-indigo-800 rounded uppercase font-semibold"><i class="fa-solid fa-microphone mr-1"></i>Voice</span>' : ''}
+          ${escapeHtml(text)}
+        </div>
+        <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center shrink-0 text-white font-bold text-xs">
+          ME
+        </div>
+      `;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function appendLoadingBubble() {
+      const container = document.getElementById('messages-container');
+      const id = 'loading-' + Math.random().toString(36).substring(2, 9);
+      const div = document.createElement('div');
+      div.id = id;
+      div.className = 'flex items-start space-x-3';
+      div.innerHTML = `
+        <div class="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-robot text-indigo-400 text-xs"></i>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-4 max-w-[80%] text-sm text-slate-400 flex items-center space-x-2">
+          <i class="fa-solid fa-circle-notch fa-spin text-indigo-400"></i>
+          <span>Swarm investigating & orchestrating...</span>
+        </div>
+      `;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+      return id;
+    }
+
+    function appendAgentReply(data) {
+      const container = document.getElementById('messages-container');
+      const div = document.createElement('div');
+      div.className = 'flex items-start space-x-3';
+      
+      let badge = '';
+      if (data.cache_hit) {
+        badge = '<span class="px-2 py-0.5 text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded mr-2">CAG FAST PATH</span>';
+      } else if (data.escalated_to_human) {
+        badge = '<span class="px-2 py-0.5 text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded mr-2">ESCALATED TO HUMAN</span>';
+      }
+
+      div.innerHTML = `
+        <div class="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-robot text-indigo-400 text-xs"></i>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-4 max-w-[85%] text-sm text-slate-100 shadow-sm leading-relaxed">
+          <div class="mb-1.5">${badge}</div>
+          <div class="whitespace-pre-line">${escapeHtml(data.reply)}</div>
+        </div>
+      `;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function appendErrorMessage(text) {
+      const container = document.getElementById('messages-container');
+      const div = document.createElement('div');
+      div.className = 'flex items-start space-x-3';
+      div.innerHTML = `
+        <div class="w-8 h-8 rounded-lg bg-rose-600/20 border border-rose-500/30 flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-triangle-exclamation text-rose-400 text-xs"></i>
+        </div>
+        <div class="bg-rose-950/40 border border-rose-800/60 rounded-2xl rounded-tl-none p-4 max-w-[85%] text-sm text-rose-200">
+          ${escapeHtml(text)}
+        </div>
+      `;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function updateInspector(data, latencyMs) {
+      // Latency
+      document.getElementById('stat-latency').innerText = `${latencyMs} ms`;
+
+      // Path steps
+      const stepsContainer = document.getElementById('graph-steps');
+      stepsContainer.innerHTML = '';
+      (data.path || []).forEach((node, idx) => {
+        const step = document.createElement('div');
+        step.className = 'px-2.5 py-1 rounded text-xs font-mono font-medium whitespace-nowrap ' +
+          (node === 'cag_check' ? 'bg-amber-950/60 border border-amber-600 text-amber-300' :
+           node === 'l3_resolver' ? 'bg-emerald-950/60 border border-emerald-600 text-emerald-300' :
+           node === 'clarify' ? 'bg-purple-950/60 border border-purple-600 text-purple-300' :
+           node === 'asset_handler' || node === 'access_handler' ? 'bg-blue-950/60 border border-blue-600 text-blue-300' :
+           'bg-slate-800 border border-slate-700 text-indigo-300');
+        step.innerText = node;
+        stepsContainer.appendChild(step);
+
+        if (idx < data.path.length - 1) {
+          const arrow = document.createElement('span');
+          arrow.className = 'text-slate-600 text-xs';
+          arrow.innerHTML = '&rarr;';
+          stepsContainer.appendChild(arrow);
+        }
+      });
+
+      // Ticket meta
+      document.getElementById('badge-ticket-id').innerText = data.ticket_id || 'N/A';
+      document.getElementById('meta-type').innerText = data.ticket_type || 'unknown';
+      
+      const sevEl = document.getElementById('meta-severity');
+      sevEl.innerText = (data.severity || 'unknown').toUpperCase();
+      sevEl.className = 'font-bold ' + 
+        (data.severity === 'critical' ? 'text-rose-400' :
+         data.severity === 'medium' ? 'text-amber-400' :
+         data.severity === 'low' ? 'text-emerald-400' : 'text-slate-400');
+
+      document.getElementById('meta-service').innerText = data.service || 'None detected';
+
+      // Guardrails
+      document.getElementById('meta-cag').innerHTML = data.cache_hit ? 
+        '<span class="text-amber-400 font-bold"><i class="fa-solid fa-bolt mr-1"></i>HIT (<20ms)</span>' : 'Miss';
+      
+      document.getElementById('meta-voice-esc').innerHTML = data.needs_voice_escalation ? 
+        '<span class="text-rose-400 font-bold"><i class="fa-solid fa-bell mr-1"></i>TRUE</span>' : 'False';
+
+      document.getElementById('meta-human-esc').innerHTML = data.escalated_to_human ? 
+        `<span class="text-rose-400 font-bold">YES (${escapeHtml(data.escalation_reason || 'Unknown')})</span>` : 'No';
+
+      // Runbooks
+      const rbContainer = document.getElementById('runbooks-container');
+      rbContainer.innerHTML = '';
+      if (data.runbook_citations && data.runbook_citations.length > 0) {
+        data.runbook_citations.forEach(c => {
+          const item = document.createElement('div');
+          item.className = 'p-2.5 rounded-lg bg-slate-800/80 border border-slate-700/80 text-xs space-y-1';
+          item.innerHTML = `
+            <div class="flex items-center justify-between font-medium">
+              <span class="text-emerald-300 font-mono font-bold">${escapeHtml(c.runbook_id || '')} &bull; ${escapeHtml(c.section || '')}</span>
+              <span class="text-[10px] text-slate-400">Score: ${(c.score || 0).toFixed(2)}</span>
+            </div>
+            <div class="text-slate-300 font-semibold">${escapeHtml(c.title || '')}</div>
+            <p class="text-slate-400 text-[11px] line-clamp-2">${escapeHtml(c.text || '')}</p>
+          `;
+          rbContainer.appendChild(item);
+        });
+      } else {
+        rbContainer.innerHTML = '<p class="text-xs text-slate-500 italic">No runbooks cited for the current prompt.</p>';
+      }
+
+      // Procedural Precedents
+      const procContainer = document.getElementById('procedural-container');
+      procContainer.innerHTML = '';
+      if (data.procedural_citations && data.procedural_citations.length > 0) {
+        data.procedural_citations.forEach(p => {
+          const item = document.createElement('div');
+          item.className = 'p-2.5 rounded-lg bg-slate-800/80 border border-slate-700/80 text-xs space-y-1';
+          item.innerHTML = `
+            <div class="flex items-center justify-between font-medium">
+              <span class="text-purple-300 font-bold">${escapeHtml(p.canonical_title || p.resolved_problem || 'Precedent')}</span>
+              <span class="px-1.5 py-0.5 rounded text-[10px] bg-purple-950 text-purple-300 border border-purple-800">
+                ${p.similar_cases ? p.similar_cases + ' cases' : 'Match'}
+              </span>
+            </div>
+            <p class="text-slate-400 text-[11px] line-clamp-2">${escapeHtml(p.resolution_message || '')}</p>
+          `;
+          procContainer.appendChild(item);
+        });
+      } else {
+        procContainer.innerHTML = '<p class="text-xs text-slate-500 italic">No historical precedents retrieved.</p>';
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>

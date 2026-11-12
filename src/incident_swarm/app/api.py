@@ -8,9 +8,11 @@ from __future__ import annotations
 import logging
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from langgraph.errors import GraphRecursionError
 from pydantic import BaseModel, Field
 
@@ -91,6 +93,18 @@ def create_app(graph=None, settings: Settings | None = None) -> FastAPI:
         tracing.flush()
 
     app = FastAPI(title="IT Support & Incident Resolution Swarm", version=VERSION, lifespan=lifespan)
+
+    @app.get("/", include_in_schema=False)
+    @app.get("/ui", include_in_schema=False)
+    def serve_ui():
+        """Serve the modern Enterprise Ops Console UI."""
+        ui_file = ROOT / "src" / "incident_swarm" / "app" / "static" / "index.html"
+        if not ui_file.exists():
+            # Fallback when running inside container package install
+            import incident_swarm
+            pkg_root = Path(incident_swarm.__file__).parent
+            ui_file = pkg_root / "app" / "static" / "index.html"
+        return FileResponse(ui_file)
 
     @app.get("/health")
     def health() -> dict:
