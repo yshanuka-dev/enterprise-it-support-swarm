@@ -17,11 +17,20 @@ def make_handler(settings: Settings):
     if not (settings.langfuse_public_key and settings.langfuse_secret_key):
         return None
     try:
+        import os
         from langfuse import Langfuse
         from langfuse.langchain import CallbackHandler
 
-        Langfuse(public_key=settings.langfuse_public_key, secret_key=settings.langfuse_secret_key,
-                 host=settings.langfuse_host)  # registers the client the handler will use
+        # Langfuse v5 OpenTelemetry exporter reads LANGFUSE_HOST / KEYS from os.environ
+        os.environ["LANGFUSE_PUBLIC_KEY"] = settings.langfuse_public_key
+        os.environ["LANGFUSE_SECRET_KEY"] = settings.langfuse_secret_key
+        os.environ["LANGFUSE_HOST"] = settings.langfuse_host
+
+        Langfuse(
+            public_key=settings.langfuse_public_key,
+            secret_key=settings.langfuse_secret_key,
+            host=settings.langfuse_host,
+        )  # registers the client the handler will use
         return CallbackHandler(public_key=settings.langfuse_public_key)
     except Exception as exc:  # noqa: BLE001 - tracing must never take the API down
         log.warning("Langfuse unavailable, continuing untraced: %s", exc)
