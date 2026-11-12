@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Enterprise IT Incident Swarm - Ops Console</title>
+  <title>Enterprise IT Incident Swarm - Operations Center</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -30,8 +30,6 @@
     ::-webkit-scrollbar-track { background: #0f172a; }
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #475569; }
-    .pulse-glow { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
   </style>
 </head>
 <body class="h-full flex flex-col overflow-hidden antialiased font-sans select-none">
@@ -47,7 +45,7 @@
           <h1 class="font-bold text-base tracking-wide text-white">IT Incident Resolution Swarm</h1>
           <span class="px-2 py-0.5 text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 rounded-full">v0.1.0 Enterprise</span>
         </div>
-        <p class="text-xs text-slate-400">Multi-Agent Tiered Architecture &bull; CRAG &bull; FastMCP Telemetry &bull; Procedural Memory</p>
+        <p class="text-xs text-slate-400">Multi-Agent Tiered Architecture &bull; Corrective RAG &bull; FastMCP &bull; Procedural Memory</p>
       </div>
     </div>
 
@@ -62,7 +60,7 @@
         <span>Langfuse Tracing</span>
       </div>
       <button onclick="resetSession()" class="px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition border border-slate-700">
-        <i class="fa-solid fa-rotate-right mr-1.5 text-slate-400"></i>New Session
+        <i class="fa-solid fa-rotate-right mr-1.5 text-slate-400"></i>New Conversation
       </button>
     </div>
   </header>
@@ -76,12 +74,12 @@
       <!-- Quick Prompts Toolbar -->
       <div class="px-6 py-3 border-b border-slate-800/80 bg-slate-900/40">
         <div class="text-xs font-semibold text-slate-400 mb-2 flex items-center justify-between">
-          <span><i class="fa-solid fa-bolt text-amber-400 mr-1.5"></i>Quick Scenario Prompts (Section 11)</span>
+          <span><i class="fa-solid fa-bolt text-amber-400 mr-1.5"></i>Quick Scenario Prompts</span>
           <span class="text-[10px] text-slate-500">Click to run</span>
         </div>
         <div class="flex flex-wrap gap-2">
           <button onclick="setPrompt('How to reset VPN?')" class="px-2.5 py-1 text-xs bg-slate-800/90 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-300 hover:text-indigo-200 border border-slate-700/80 rounded-md transition text-left">
-            ⚡ VPN FAQ (CAG)
+            ⚡ VPN FAQ (CAG Cache)
           </button>
           <button onclick="setPrompt('auth-db is down and rejecting connections')" class="px-2.5 py-1 text-xs bg-slate-800/90 hover:bg-rose-600/30 hover:border-rose-500/50 text-slate-300 hover:text-rose-200 border border-slate-700/80 rounded-md transition text-left">
             🔥 auth-db Down (L1-L3)
@@ -93,7 +91,7 @@
             🧠 Memory Recall (Precedents)
           </button>
           <button onclick="setPrompt('My laptop screen AST-0014 has dead pixels and is cracked')" class="px-2.5 py-1 text-xs bg-slate-800/90 hover:bg-blue-600/30 hover:border-blue-500/50 text-slate-300 hover:text-blue-200 border border-slate-700/80 rounded-md transition text-left">
-            💻 Laptop RMA (Asset)
+            💻 Laptop Replacement (RMA)
           </button>
           <button onclick="setPrompt('it is broken')" class="px-2.5 py-1 text-xs bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 rounded-md transition text-left">
             ❓ Ambiguity Clarify
@@ -109,8 +107,8 @@
             <i class="fa-solid fa-robot text-indigo-400 text-xs"></i>
           </div>
           <div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-4 max-w-[85%] text-sm text-slate-200 shadow-sm leading-relaxed">
-            <p class="font-medium text-indigo-300 mb-1">Incident Resolution Swarm Active</p>
-            Hello! I am your autonomous enterprise IT support agent. You can ask routine FAQ questions, report infrastructure outages, or request hardware replacements. How can I assist you today?
+            <p class="font-medium text-indigo-300 mb-1">Enterprise Support Assistant Active</p>
+            Hello! I am connected to live observability telemetry, IT service runbooks, and asset inventory. How can I help resolve your incident today?
           </div>
         </div>
       </div>
@@ -128,7 +126,7 @@
           <input 
             type="text" 
             id="message-input" 
-            placeholder="Describe your IT issue (e.g., 'Redis is out of memory on prod-cache-01')..."
+            placeholder="Type your issue (e.g., 'Redis is out of memory on prod-cache-01')..."
             autocomplete="off"
             class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 pr-12 transition shadow-inner"
           />
@@ -149,14 +147,14 @@
       <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-sm">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-sm font-semibold text-slate-200 flex items-center">
-            <i class="fa-solid fa-network-wired text-indigo-400 mr-2"></i>Swarm Routing & Execution Graph
+            <i class="fa-solid fa-network-wired text-indigo-400 mr-2"></i>Agent Routing Path
           </h2>
           <span id="stat-latency" class="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">0 ms</span>
         </div>
 
         <!-- Node Stepper -->
         <div id="graph-steps" class="flex items-center space-x-1.5 overflow-x-auto py-2">
-          <div class="px-3 py-1.5 rounded-md text-xs font-mono bg-slate-800 border border-slate-700 text-slate-400">Idle</div>
+          <div class="px-3 py-1.5 rounded-md text-xs font-mono bg-slate-800 border border-slate-700 text-slate-400">Ready for query</div>
         </div>
       </div>
 
@@ -166,7 +164,7 @@
         <!-- Ticket Meta -->
         <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
           <div class="text-xs font-semibold text-slate-400 mb-2 flex items-center justify-between">
-            <span><i class="fa-solid fa-ticket text-indigo-400 mr-1.5"></i>Active Incident Ticket</span>
+            <span><i class="fa-solid fa-ticket text-indigo-400 mr-1.5"></i>Incident Ticket</span>
             <span id="badge-ticket-id" class="font-mono text-indigo-300 font-bold">---</span>
           </div>
           <div class="space-y-1.5 text-xs">
@@ -175,33 +173,33 @@
               <span id="meta-type" class="text-slate-200 font-medium">---</span>
             </div>
             <div class="flex justify-between text-slate-400">
-              <span>Severity:</span>
+              <span>Severity Level:</span>
               <span id="meta-severity" class="font-medium">---</span>
             </div>
             <div class="flex justify-between text-slate-400">
-              <span>Affected Service:</span>
+              <span>Target Service:</span>
               <span id="meta-service" class="text-slate-200 font-mono">---</span>
             </div>
           </div>
         </div>
 
-        <!-- Escalation & Guardrails -->
+        <!-- Escalation & Safety Guardrails -->
         <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
           <div class="text-xs font-semibold text-slate-400 mb-2 flex items-center justify-between">
-            <span><i class="fa-solid fa-shield-halved text-cyan-400 mr-1.5"></i>Guardrails & Clearance</span>
+            <span><i class="fa-solid fa-shield-halved text-cyan-400 mr-1.5"></i>Support Guardrails</span>
           </div>
           <div class="space-y-1.5 text-xs">
             <div class="flex justify-between text-slate-400">
-              <span>CAG Fast Path:</span>
+              <span>Zero-Cost Cache:</span>
               <span id="meta-cag" class="font-medium text-slate-300">No</span>
             </div>
             <div class="flex justify-between text-slate-400">
-              <span>Voice Escalation:</span>
+              <span>Voice Bridge Paging:</span>
               <span id="meta-voice-esc" class="font-medium text-slate-300">False</span>
             </div>
             <div class="flex justify-between text-slate-400">
-              <span>Human Handover:</span>
-              <span id="meta-human-esc" class="font-medium text-slate-300">No</span>
+              <span>Human Staff Escalation:</span>
+              <span id="meta-human-esc" class="font-medium text-slate-300">Not required</span>
             </div>
           </div>
         </div>
@@ -210,20 +208,20 @@
       <!-- Grounding: Runbooks (CRAG) -->
       <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
         <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center">
-          <i class="fa-solid fa-book-bookmark text-emerald-400 mr-2"></i>Cited Runbooks (Corrective RAG)
+          <i class="fa-solid fa-book-bookmark text-emerald-400 mr-2"></i>Cited SOP Runbooks (Corrective RAG)
         </h3>
         <div id="runbooks-container" class="space-y-2">
-          <p class="text-xs text-slate-500 italic">No runbooks cited for the current prompt.</p>
+          <p class="text-xs text-slate-500 italic">No runbooks needed for the current prompt.</p>
         </div>
       </div>
 
       <!-- Grounding: Procedural Memory (Qdrant Precedents) -->
       <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
         <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center">
-          <i class="fa-solid fa-brain text-purple-400 mr-2"></i>Procedural Memory Precedents (Vector Search)
+          <i class="fa-solid fa-brain text-purple-400 mr-2"></i>Historical Resolution Precedents
         </h3>
         <div id="procedural-container" class="space-y-2">
-          <p class="text-xs text-slate-500 italic">No historical precedents retrieved.</p>
+          <p class="text-xs text-slate-500 italic">No historical precedents needed.</p>
         </div>
       </div>
 
@@ -232,6 +230,19 @@
 
   <script>
     let currentSessionId = 'sess-' + Math.random().toString(36).substring(2, 10);
+    let phraseInterval = null;
+
+    // Friendly, dynamic phrases that rotate while the agent is thinking
+    const FANCY_PHRASES = [
+      "Analyzing incident symptoms...",
+      "Consulting Tier 1 Knowledge Base & FAQ cache...",
+      "Querying Observability MCP telemetry...",
+      "Checking service metrics & memory thresholds...",
+      "Retrieving corrective SOP runbooks...",
+      "Matching past historical incident precedents...",
+      "Validating security clearance permissions...",
+      "Formulating verified resolution steps..."
+    ];
 
     function setPrompt(text) {
       document.getElementById('message-input').value = text;
@@ -247,8 +258,8 @@
             <i class="fa-solid fa-robot text-indigo-400 text-xs"></i>
           </div>
           <div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-4 max-w-[85%] text-sm text-slate-200 shadow-sm leading-relaxed">
-            <p class="font-medium text-indigo-300 mb-1">New Session Started</p>
-            Session cleared. Ready for your next query or outage report.
+            <p class="font-medium text-indigo-300 mb-1">New Conversation Started</p>
+            Context refreshed. Ready for your next query or outage report.
           </div>
         </div>
       `;
@@ -257,16 +268,16 @@
 
     function clearInspector() {
       document.getElementById('stat-latency').innerText = '0 ms';
-      document.getElementById('graph-steps').innerHTML = '<div class="px-3 py-1.5 rounded-md text-xs font-mono bg-slate-800 border border-slate-700 text-slate-400">Idle</div>';
+      document.getElementById('graph-steps').innerHTML = '<div class="px-3 py-1.5 rounded-md text-xs font-mono bg-slate-800 border border-slate-700 text-slate-400">Ready for query</div>';
       document.getElementById('badge-ticket-id').innerText = '---';
       document.getElementById('meta-type').innerText = '---';
       document.getElementById('meta-severity').innerText = '---';
       document.getElementById('meta-service').innerText = '---';
       document.getElementById('meta-cag').innerText = 'No';
       document.getElementById('meta-voice-esc').innerText = 'False';
-      document.getElementById('meta-human-esc').innerText = 'No';
-      document.getElementById('runbooks-container').innerHTML = '<p class="text-xs text-slate-500 italic">No runbooks cited for the current prompt.</p>';
-      document.getElementById('procedural-container').innerHTML = '<p class="text-xs text-slate-500 italic">No historical precedents retrieved.</p>';
+      document.getElementById('meta-human-esc').innerText = 'Not required';
+      document.getElementById('runbooks-container').innerHTML = '<p class="text-xs text-slate-500 italic">No runbooks needed for the current prompt.</p>';
+      document.getElementById('procedural-container').innerHTML = '<p class="text-xs text-slate-500 italic">No historical precedents needed.</p>';
     }
 
     async function sendMessage(e) {
@@ -282,7 +293,7 @@
       // Append User message
       appendUserMessage(text, channel);
 
-      // Loading bubble
+      // Loading bubble with rotating fancy phrases
       const loadingId = appendLoadingBubble();
 
       const startTime = performance.now();
@@ -300,7 +311,8 @@
         const data = await response.json();
         const duration = Math.round(performance.now() - startTime);
 
-        // Remove loading bubble
+        // Stop phrase rotation and remove loading bubble
+        clearInterval(phraseInterval);
         document.getElementById(loadingId)?.remove();
 
         // Append Agent Reply
@@ -310,8 +322,9 @@
         updateInspector(data, duration);
 
       } catch (err) {
+        clearInterval(phraseInterval);
         document.getElementById(loadingId)?.remove();
-        appendErrorMessage('Failed to connect to agent swarm: ' + err.message);
+        appendErrorMessage('Unable to reach the support agent: ' + err.message);
       } finally {
         document.getElementById('send-btn').disabled = false;
       }
@@ -323,10 +336,10 @@
       div.className = 'flex items-start justify-end space-x-3';
       div.innerHTML = `
         <div class="bg-indigo-600 text-white rounded-2xl rounded-tr-none p-3.5 max-w-[80%] text-sm shadow-md leading-relaxed">
-          ${channel === 'voice' ? '<span class="px-1.5 py-0.5 mr-1.5 text-[10px] bg-indigo-800 rounded uppercase font-semibold"><i class="fa-solid fa-microphone mr-1"></i>Voice</span>' : ''}
+          ${channel === 'voice' ? '<span class="px-1.5 py-0.5 mr-1.5 text-[10px] bg-indigo-800 rounded uppercase font-semibold"><i class="fa-solid fa-microphone mr-1"></i>Voice Channel</span>' : ''}
           ${escapeHtml(text)}
         </div>
-        <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center shrink-0 text-white font-bold text-xs">
+        <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center shrink-0 text-white font-bold text-xs shadow-sm">
           ME
         </div>
       `;
@@ -344,13 +357,31 @@
         <div class="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
           <i class="fa-solid fa-robot text-indigo-400 text-xs"></i>
         </div>
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-4 max-w-[80%] text-sm text-slate-400 flex items-center space-x-2">
-          <i class="fa-solid fa-circle-notch fa-spin text-indigo-400"></i>
-          <span>Swarm investigating & orchestrating...</span>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-4 max-w-[85%] text-sm text-slate-300 flex items-center space-x-3 shadow-md">
+          <div class="relative flex items-center justify-center">
+            <i class="fa-solid fa-circle-notch fa-spin text-indigo-400 text-base"></i>
+          </div>
+          <div>
+            <div id="loading-phrase" class="font-medium text-indigo-200 transition-all duration-300">
+              Connecting with IT Support Swarm...
+            </div>
+            <div class="text-[11px] text-slate-400">Multi-agent investigation in progress</div>
+          </div>
         </div>
       `;
       container.appendChild(div);
       container.scrollTop = container.scrollHeight;
+
+      // Cycle fancy phrases every 1.5 seconds
+      let phraseIdx = 0;
+      phraseInterval = setInterval(() => {
+        const el = document.getElementById('loading-phrase');
+        if (el) {
+          phraseIdx = (phraseIdx + 1) % FANCY_PHRASES.length;
+          el.innerText = FANCY_PHRASES[phraseIdx];
+        }
+      }, 1500);
+
       return id;
     }
 
@@ -361,9 +392,9 @@
       
       let badge = '';
       if (data.cache_hit) {
-        badge = '<span class="px-2 py-0.5 text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded mr-2">CAG FAST PATH</span>';
+        badge = '<span class="px-2 py-0.5 text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded mr-2"><i class="fa-solid fa-bolt mr-1"></i>INSTANT FAQ MATCH</span>';
       } else if (data.escalated_to_human) {
-        badge = '<span class="px-2 py-0.5 text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded mr-2">ESCALATED TO HUMAN</span>';
+        badge = '<span class="px-2 py-0.5 text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded mr-2"><i class="fa-solid fa-user-gear mr-1"></i>REFERRED TO HUMAN SPECIALIST</span>';
       }
 
       div.innerHTML = `
@@ -399,7 +430,20 @@
       // Latency
       document.getElementById('stat-latency').innerText = `${latencyMs} ms`;
 
-      // Path steps
+      // Path steps with user-friendly names
+      const friendlyNodeNames = {
+        'intake': 'Intake Request',
+        'cag_check': 'FAQ Cache Check',
+        'l1_triage': 'L1 Severity Triage',
+        'clarify': 'Request Clarification',
+        'access_handler': 'Access & Credentials',
+        'asset_handler': 'Asset & RMA',
+        'l2_investigator': 'L2 Observability Telemetry',
+        'l3_resolver': 'L3 Runbook Resolution',
+        'writeback': 'Ticket Update',
+        'escalate_to_human': 'Escalate to Engineer'
+      };
+
       const stepsContainer = document.getElementById('graph-steps');
       stepsContainer.innerHTML = '';
       (data.path || []).forEach((node, idx) => {
@@ -410,7 +454,7 @@
            node === 'clarify' ? 'bg-purple-950/60 border border-purple-600 text-purple-300' :
            node === 'asset_handler' || node === 'access_handler' ? 'bg-blue-950/60 border border-blue-600 text-blue-300' :
            'bg-slate-800 border border-slate-700 text-indigo-300');
-        step.innerText = node;
+        step.innerText = friendlyNodeNames[node] || node;
         stepsContainer.appendChild(step);
 
         if (idx < data.path.length - 1) {
@@ -423,7 +467,7 @@
 
       // Ticket meta
       document.getElementById('badge-ticket-id').innerText = data.ticket_id || 'N/A';
-      document.getElementById('meta-type').innerText = data.ticket_type || 'unknown';
+      document.getElementById('meta-type').innerText = (data.ticket_type || 'General IT').replace('_', ' ');
       
       const sevEl = document.getElementById('meta-severity');
       sevEl.innerText = (data.severity || 'unknown').toUpperCase();
@@ -432,17 +476,17 @@
          data.severity === 'medium' ? 'text-amber-400' :
          data.severity === 'low' ? 'text-emerald-400' : 'text-slate-400');
 
-      document.getElementById('meta-service').innerText = data.service || 'None detected';
+      document.getElementById('meta-service').innerText = data.service || 'General Workspace';
 
       // Guardrails
       document.getElementById('meta-cag').innerHTML = data.cache_hit ? 
-        '<span class="text-amber-400 font-bold"><i class="fa-solid fa-bolt mr-1"></i>HIT (<20ms)</span>' : 'Miss';
+        '<span class="text-amber-400 font-bold"><i class="fa-solid fa-bolt mr-1"></i>Resolved (<20ms)</span>' : 'Evaluated by Agents';
       
       document.getElementById('meta-voice-esc').innerHTML = data.needs_voice_escalation ? 
-        '<span class="text-rose-400 font-bold"><i class="fa-solid fa-bell mr-1"></i>TRUE</span>' : 'False';
+        '<span class="text-rose-400 font-bold"><i class="fa-solid fa-bell mr-1"></i>Voice Bridge Paged</span>' : 'Standard Queue';
 
       document.getElementById('meta-human-esc').innerHTML = data.escalated_to_human ? 
-        `<span class="text-rose-400 font-bold">YES (${escapeHtml(data.escalation_reason || 'Unknown')})</span>` : 'No';
+        `<span class="text-rose-400 font-bold">Assigned to Engineer (${escapeHtml(data.escalation_reason || 'Needs human review')})</span>` : 'Handled by Autonomous Agent';
 
       // Runbooks
       const rbContainer = document.getElementById('runbooks-container');
@@ -454,7 +498,7 @@
           item.innerHTML = `
             <div class="flex items-center justify-between font-medium">
               <span class="text-emerald-300 font-mono font-bold">${escapeHtml(c.runbook_id || '')} &bull; ${escapeHtml(c.section || '')}</span>
-              <span class="text-[10px] text-slate-400">Score: ${(c.score || 0).toFixed(2)}</span>
+              <span class="text-[10px] text-slate-400">Match: ${Math.round((c.score || 0) * 100)}%</span>
             </div>
             <div class="text-slate-300 font-semibold">${escapeHtml(c.title || '')}</div>
             <p class="text-slate-400 text-[11px] line-clamp-2">${escapeHtml(c.text || '')}</p>
@@ -462,7 +506,7 @@
           rbContainer.appendChild(item);
         });
       } else {
-        rbContainer.innerHTML = '<p class="text-xs text-slate-500 italic">No runbooks cited for the current prompt.</p>';
+        rbContainer.innerHTML = '<p class="text-xs text-slate-500 italic">No runbooks needed for the current prompt.</p>';
       }
 
       // Procedural Precedents
@@ -474,9 +518,9 @@
           item.className = 'p-2.5 rounded-lg bg-slate-800/80 border border-slate-700/80 text-xs space-y-1';
           item.innerHTML = `
             <div class="flex items-center justify-between font-medium">
-              <span class="text-purple-300 font-bold">${escapeHtml(p.canonical_title || p.resolved_problem || 'Precedent')}</span>
+              <span class="text-purple-300 font-bold">${escapeHtml(p.canonical_title || p.resolved_problem || 'Historical Precedent')}</span>
               <span class="px-1.5 py-0.5 rounded text-[10px] bg-purple-950 text-purple-300 border border-purple-800">
-                ${p.similar_cases ? p.similar_cases + ' cases' : 'Match'}
+                ${p.similar_cases ? p.similar_cases + ' past incidents' : 'Past Match'}
               </span>
             </div>
             <p class="text-slate-400 text-[11px] line-clamp-2">${escapeHtml(p.resolution_message || '')}</p>
@@ -484,7 +528,7 @@
           procContainer.appendChild(item);
         });
       } else {
-        procContainer.innerHTML = '<p class="text-xs text-slate-500 italic">No historical precedents retrieved.</p>';
+        procContainer.innerHTML = '<p class="text-xs text-slate-500 italic">No historical precedents needed.</p>';
       }
     }
 
