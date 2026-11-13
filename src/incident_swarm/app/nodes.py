@@ -410,9 +410,8 @@ class Nodes:
         if not valid_citations:
             reason = "no matching runbook found"
             reply = (
-                f"⚠️ **Incident {ticket_id}**: No verified SOP runbook found for this specific issue.\n\n"
-                f"• **Reason**: {reason}.\n"
-                f"• **Next Step**: Escalated to an on-call IT Service Desk specialist for manual investigation."
+                f"⚠️ Incident {ticket_id}: No verified runbook matches this issue ({reason}). "
+                "I have escalated this incident to an on-call IT specialist for manual investigation."
             )
             return {
                 **update,
@@ -446,10 +445,21 @@ class Nodes:
 
         precedent_text = ""
         if precedents:
-            top_p = precedents[0]
-            count = top_p.get("similar_cases", 1)
-            p_title = top_p.get("canonical_title") or top_p.get("resolved_problem", "")
-            precedent_text = f" (Precedent: {count} similar cases verified under '{p_title}')"
+            # Domain relevance: only cite precedent if keywords or service overlap
+            service_norm = (state.get("service") or "").lower()
+            query_keywords = set(re.findall(r"\b[a-z]{3,}\b", user_text.lower()))
+            relevant = []
+            for p in precedents:
+                p_text = f"{p.get('canonical_title', '')} {p.get('resolved_problem', '')} {p.get('service', '')}".lower()
+                overlap = query_keywords.intersection(set(re.findall(r"\b[a-z]{3,}\b", p_text)))
+                if (service_norm and service_norm in p_text) or len(overlap) >= 2:
+                    relevant.append(p)
+
+            if relevant:
+                top_p = relevant[0]
+                count = top_p.get("similar_cases", 1)
+                p_title = top_p.get("canonical_title") or top_p.get("resolved_problem", "")
+                precedent_text = f" (matches {count} past resolutions under '{p_title}')"
 
         service = state.get("service") or "infrastructure service"
         sev_label = (state.get("severity") or "high").upper()
@@ -460,12 +470,14 @@ class Nodes:
                 f"Clearance confirmed for {user_id}.{precedent_text}"
             )
             reply = (
-                f"🚨 **Incident {ticket_id}** [{sev_label}]: Outage detected on **{service}**.\n\n"
-                f"• **Remediation Plan**: Following standard operating procedure **{runbook_id}** ({section}).\n"
-                f"• **Clearance Status**: Clearance verified (`{action_type}` approved for employee `{user_id}`).\n"
-                f"• **Next Step**: Executing remediation protocol to restore service stability.\n"
-                f"{'• **Historical Reference**:' + precedent_text if precedent_text else ''}"
-            ).strip()
+                f"🚨 **Incident {ticket_id}** [{sev_label} Outage on {service}]\n\n"
+                f"• Remediation standard operating procedure: **{runbook_id}** ({section})\n"
+                f"• Clearance verified: `{action_type}` approved for employee `{user_id}`\n"
+                f"• Remediation protocol is actively executing to restore service stability."
+            )
+            if precedent_text:
+                reply += f"\n• Historical reference:{precedent_text}"
+
             update_ticket(ticket_id=ticket_id, status="in_progress", resolution_notes=summary)
             return {
                 **update,
@@ -480,11 +492,12 @@ class Nodes:
 
         summary = f"Fix identified in {runbook_id} ({section}), but {user_id} lacks clearance for {action_type}."
         reply = (
-            f"⚠️ **Incident {ticket_id}** [{sev_label}]: Outage detected on **{service}**.\n\n"
-            f"• **Identified SOP**: {runbook_id} ({section}).\n"
-            f"• **Clearance Notice**: User `{user_id}` lacks DevOps clearance for action `{action_type}`.\n"
-            f"• **Action Taken**: Escalation ticket routed directly to the on-call DevOps engineering team."
+            f"⚠️ **Incident {ticket_id}** [{sev_label} Outage on {service}]\n\n"
+            f"• Identified procedure: **{runbook_id}** ({section})\n"
+            f"• Clearance notice: User `{user_id}` lacks DevOps clearance for action `{action_type}`\n"
+            f"• Escalation ticket has been routed to on-call DevOps engineering for execution."
         )
+
         update_ticket(ticket_id=ticket_id, status="escalated", resolution_notes=summary)
         return {
             **update,

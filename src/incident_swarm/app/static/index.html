@@ -407,7 +407,7 @@
         </div>
         <div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-4 max-w-[85%] text-sm text-slate-100 shadow-sm leading-relaxed">
           <div class="mb-1.5">${badge}</div>
-          <div class="whitespace-pre-line">${escapeHtml(data.reply)}</div>
+          <div class="text-slate-200 leading-relaxed space-y-1">${formatMarkdown(data.reply)}</div>
         </div>
       `;
       container.appendChild(div);
@@ -534,6 +534,29 @@
       } else {
         procContainer.innerHTML = '<p class="text-xs text-slate-500 italic">No historical precedents needed.</p>';
       }
+    }
+
+    function formatMarkdown(raw) {
+      if (!raw) return '';
+      // 1. Escape HTML entities
+      let html = escapeHtml(raw);
+
+      // 2. Bold: **text** -> clean strong element
+      html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-white tracking-wide">$1</strong>');
+
+      // 3. Inline code: `code` -> clean code chip
+      html = html.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-slate-800 text-indigo-300 font-mono text-xs border border-slate-700/60">$1</code>');
+
+      // 4. Bullet lists: lines starting with • or - or *
+      html = html.replace(/^[•\-\*]\s*(.*?)$/gm, '<div class="flex items-start space-x-2 my-1.5"><span class="text-indigo-400 select-none">•</span><div class="text-slate-200 leading-snug">$1</div></div>');
+
+      // 5. Paragraph breaks
+      html = html.replace(/\n\n+/g, '<div class="h-2"></div>');
+
+      // 6. Single line breaks
+      html = html.replace(/\n/g, '<br>');
+
+      return html;
     }
 
     function escapeHtml(str) {
