@@ -29,6 +29,36 @@ CLARIFY_QUESTION = (
 )
 
 
+GREETING_PATTERN = re.compile(
+    r"^(?:hi|hello|hey|good\s+(?:morning|afternoon|evening)|howdy|greetings|what's\s+up|sup)\b[!.? ]*$",
+    re.IGNORECASE,
+)
+
+
+def generate_conversational_reply(text: str) -> str:
+    """Invoke small LLM (gemini-3.5-flash-lite) to produce a warm, conversational IT assistant greeting."""
+    try:
+        from incident_swarm.config import get_settings, load_model_config
+        settings = get_settings()
+        if settings.google_api_key:
+            from google import genai
+            client = genai.Client(api_key=settings.google_api_key, http_options={"api_version": "v1beta"})
+            cfg = load_model_config()
+            tier_name = cfg.roles.get("triage", "small")
+            model_name = cfg.tiers.get(tier_name).model if tier_name in cfg.tiers else "gemini-3.5-flash-lite"
+            prompt = (
+                "You are an enterprise IT Support Assistant. The user sent a greeting: "
+                f"'{text}'. Respond warmly, politely, and ask how you can help with their IT systems, "
+                "software, accounts, or equipment today in 1-2 friendly sentences."
+            )
+            res = client.models.generate_content(model=model_name, contents=prompt)
+            if res.text:
+                return res.text.strip()
+    except Exception:
+        pass
+    return "Hello! I hope you're having a great day. How can I assist you with your IT systems or equipment today?"
+
+
 def default_metrics_tool(service: str | None) -> dict:
     """Retrieve telemetry metrics and anomalies from the Observability MCP server."""
     from incident_swarm.mcp_servers.observability import get_metrics, list_anomalies
@@ -218,7 +248,17 @@ class Nodes:
         }
 
     def clarify(self, state: SwarmState) -> dict:
-        """Graceful fallback for ambiguous input: ask one clarifying question."""
+        """Graceful conversational fallback: if greeting, generate warm LLM greeting; otherwise ask clarification."""
+        texts = user_texts(state)
+        latest_text = texts[-1].strip() if texts else ""
+        if GREETING_PATTERN.match(latest_text):
+            conversational_reply = generate_conversational_reply(latest_text)
+            return {
+                **self._hop(state, "clarify"),
+                "clarify_attempts": state.get("clarify_attempts", 0),  # don't burn clarify attempt on a simple hello
+                **_say(conversational_reply),
+            }
+
         return {**self._hop(state, "clarify"), "clarify_attempts": state.get("clarify_attempts", 0) + 1,
                 **_say(CLARIFY_QUESTION)}
 

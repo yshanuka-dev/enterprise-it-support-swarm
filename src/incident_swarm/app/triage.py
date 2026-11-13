@@ -141,7 +141,9 @@ def triage_with_llm(text: str, settings: Settings) -> TriageResult | None:
                 api_key=settings.google_api_key,
                 http_options={"api_version": "v1beta", "timeout": 10000},
             )
-            model_name = load_model_config().tiers.get("triage", "gemini-2.5-flash")
+            cfg = load_model_config()
+            tier_name = cfg.roles.get("triage", "small")
+            model_name = cfg.tiers.get(tier_name).model if tier_name in cfg.tiers else "gemini-3.5-flash-lite"
             prompt = (
                 "You are an L1 IT Support Triage agent. Analyze the following user message and "
                 "classify ticket_type, severity, affected service, confidence (0.0-1.0), reasoning, "
