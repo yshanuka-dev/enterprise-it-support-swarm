@@ -15,6 +15,10 @@ import os
 import time
 from typing import Any
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from livekit.agents import (
     AutoSubscribe,
     JobContext,
@@ -267,8 +271,31 @@ async def entrypoint(ctx: JobContext):
 
 def main():
     """Run voice agent worker process from CLI."""
+    load_dotenv()
+    settings = get_settings()
+
+    # Ensure livekit environment variables are present in os.environ for CLI child processes
+    ws_url = settings.livekit_url or os.getenv("LIVEKIT_URL")
+    api_key = settings.livekit_api_key or os.getenv("LIVEKIT_API_KEY")
+    api_secret = settings.livekit_api_secret or os.getenv("LIVEKIT_API_SECRET")
+
+    if ws_url:
+        os.environ["LIVEKIT_URL"] = ws_url
+    if api_key:
+        os.environ["LIVEKIT_API_KEY"] = api_key
+    if api_secret:
+        os.environ["LIVEKIT_API_SECRET"] = api_secret
+
     logging.basicConfig(level=logging.INFO)
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+    cli.run_app(
+        WorkerOptions(
+            entrypoint_fnc=entrypoint,
+            ws_url=ws_url,
+            api_key=api_key,
+            api_secret=api_secret,
+        )
+    )
+
 
 
 if __name__ == "__main__":
