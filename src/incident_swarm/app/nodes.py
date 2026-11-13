@@ -7,11 +7,15 @@ Dependencies are injected through `Services`, so tests and the later days swap t
 
 from __future__ import annotations
 
+import logging
 import re
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
+
+log = logging.getLogger("nodes")
+
 
 from incident_swarm.app.state import SwarmState
 from incident_swarm.app.triage import classify_by_rules, extract_entities, triage_message
@@ -54,8 +58,8 @@ def generate_conversational_reply(text: str) -> str:
             res = client.models.generate_content(model=model_name, contents=prompt)
             if res.text:
                 return res.text.strip()
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        log.debug("Conversational greeting fallback: %s", exc)
     return "Hello! I hope you're having a great day. How can I assist you with your IT systems or equipment today?"
 
 
@@ -392,7 +396,7 @@ class Nodes:
         # CRAG Gating: Filter out citations with poor semantic scores or domain mismatches
         # E.g. If user text is software degradation/reboot, do not cite RB-HARDWARE
         valid_citations = []
-        is_software_query = bool(re.search(r"\b(software|reboot|restart|crash|driver|os|freeze|bsod)\b", user_text, re.I))
+        is_software_query = bool(re.search(r"\b(software|reboot|restart|crash|driver|os|freeze|bsod)\b", user_text, re.IGNORECASE))
         for c in citations:
             score = c.get("score", 0.0)
             rb_id = c.get("runbook_id", "")
@@ -449,7 +453,6 @@ class Nodes:
 
         service = state.get("service") or "infrastructure service"
         sev_label = (state.get("severity") or "high").upper()
-        type_label = (state.get("ticket_type") or "incident").replace("_", " ")
 
         if cleared:
             summary = (

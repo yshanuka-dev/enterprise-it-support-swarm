@@ -59,6 +59,10 @@
         <i class="fa-solid fa-chart-line text-cyan-400"></i>
         <span>Langfuse Tracing</span>
       </div>
+      <button onclick="openVoiceModal()" class="flex items-center space-x-1.5 text-xs text-indigo-300 hover:text-white bg-indigo-950/60 hover:bg-indigo-900/80 px-2.5 py-1.5 rounded-lg border border-indigo-700/60 transition shadow">
+        <i class="fa-solid fa-microphone-lines text-indigo-400"></i>
+        <span>LiveKit Voice Room</span>
+      </button>
       <button onclick="resetSession()" class="px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition border border-slate-700">
         <i class="fa-solid fa-rotate-right mr-1.5 text-slate-400"></i>New Conversation
       </button>
@@ -541,6 +545,96 @@
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
     }
+
+    async function openVoiceModal() {
+      const modal = document.getElementById('voice-modal');
+      modal.classList.remove('hidden');
+      const tokenDisplay = document.getElementById('voice-token-display');
+      tokenDisplay.innerText = 'Requesting LiveKit session token from /voice/token...';
+      try {
+        const res = await fetch('/voice/token?room=incident-room&identity=web-operator-' + Math.random().toString(36).substring(2, 7));
+        const data = await res.json();
+        document.getElementById('voice-room-name').innerText = data.room;
+        document.getElementById('voice-user-id').innerText = data.identity;
+        document.getElementById('voice-server-url').innerText = data.url;
+        tokenDisplay.innerText = data.token;
+      } catch (err) {
+        tokenDisplay.innerText = 'Error fetching token: ' + err.message;
+      }
+    }
+
+    function closeVoiceModal() {
+      document.getElementById('voice-modal').classList.add('hidden');
+    }
   </script>
+
+  <!-- LiveKit Voice Room Modal -->
+  <div id="voice-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-xl shadow-2xl p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-lg bg-indigo-600/30 text-indigo-400 flex items-center justify-center border border-indigo-500/40">
+            <i class="fa-solid fa-microphone-lines text-sm"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-white text-sm">LiveKit Voice Swarm Bridge</h3>
+            <p class="text-[11px] text-slate-400">Day 15-18 Voice Path &bull; Sub-2s Latency Target</p>
+          </div>
+        </div>
+        <button onclick="closeVoiceModal()" class="text-slate-400 hover:text-white text-sm px-2 py-1 rounded">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3 text-xs">
+        <div class="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60">
+          <span class="text-slate-400 text-[10px] block uppercase font-medium">Room</span>
+          <span id="voice-room-name" class="font-bold text-indigo-300">incident-room</span>
+        </div>
+        <div class="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60">
+          <span class="text-slate-400 text-[10px] block uppercase font-medium">Identity</span>
+          <span id="voice-user-id" class="font-bold text-slate-200">operator</span>
+        </div>
+        <div class="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60">
+          <span class="text-slate-400 text-[10px] block uppercase font-medium">Server Target</span>
+          <span id="voice-server-url" class="font-bold text-slate-300 truncate block">ws://localhost:7880</span>
+        </div>
+      </div>
+
+      <div class="space-y-2 text-xs">
+        <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-400 font-medium">Pipeline Architecture</span>
+            <span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check mr-1"></i>Active</span>
+          </div>
+          <div class="flex items-center space-x-2 text-[11px] text-slate-300">
+            <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Silero VAD</span>
+            <span>&rarr;</span>
+            <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Streaming STT</span>
+            <span>&rarr;</span>
+            <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Fast LLM</span>
+            <span>&rarr;</span>
+            <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Streaming TTS</span>
+          </div>
+        </div>
+
+        <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-400 font-medium">JWT Room Access Token (/voice/token)</span>
+            <button onclick="navigator.clipboard.writeText(document.getElementById('voice-token-display').innerText)" class="text-[10px] text-indigo-400 hover:text-indigo-300">Copy</button>
+          </div>
+          <p id="voice-token-display" class="font-mono text-[10px] text-slate-400 break-all select-all max-h-20 overflow-y-auto">
+            Loading...
+          </p>
+        </div>
+      </div>
+
+      <div class="pt-2 flex justify-end space-x-2">
+        <button onclick="closeVoiceModal()" class="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

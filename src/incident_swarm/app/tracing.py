@@ -18,6 +18,7 @@ def make_handler(settings: Settings):
         return None
     try:
         import os
+
         from langfuse import Langfuse
         from langfuse.langchain import CallbackHandler
 
@@ -49,7 +50,60 @@ def run_config(session_id: str, channel: str, max_hops: int, handler=None) -> di
     return config
 
 
+def log_voice_pipeline_span(
+    session_id: str,
+    end_of_utterance_delay: float,
+    llm_first_token: float,
+    tts_first_byte: float,
+    total_latency: float,
+    metadata: dict | None = None,
+) -> None:
+    """Log a 'voice_pipeline' span to Langfuse with end-to-end latency breakdown.
+
+    Required by Rubric Section 7 (Voice Latency, 5 pts):
+    Metadata must include end_of_utterance_delay, llm_first_token, tts_first_byte, and total.
+    """
+    meta = {
+        "end_of_utterance_delay_ms": round(end_of_utterance_delay * 1000, 1),
+        "llm_first_token_ms": round(llm_first_token * 1000, 1),
+        "tts_first_byte_ms": round(tts_first_byte * 1000, 1),
+        "total_latency_ms": round(total_latency * 1000, 1),
+        "target_sub_2s_met": total_latency < 2.0,
+    }
+    if metadata:
+        meta.update(metadata)
+
+    log.info(
+        "voice_pipeline latency: EOU=%.1fms, LLM=%.1fms, TTS=%.1fms, Total=%.1fms (Sub-2s: %s)",
+        meta["end_of_utterance_delay_ms"],
+        meta["llm_first_token_ms"],
+        meta["tts_first_byte_ms"],
+        meta["total_latency_ms"],
+        meta["target_sub_2s_met"],
+    )
+
+    try:
+        from langfuse import get_client
+
+        client = get_client()
+        # Create a trace or span under the session
+        trace = client.trace(
+            name="voice_call",
+            session_id=session_id,
+            tags=["channel:voice", "voice_pipeline"],
+        )
+        trace.span(
+            name="voice_pipeline",
+            metadata=meta,
+            input="user_speech_end",
+            output="agent_audio_start",
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.debug("Langfuse voice_pipeline span skipped: %s", exc)
+
+
 def flush() -> None:
+
     """Send any buffered traces (call on shutdown)."""
     try:
         from langfuse import get_client

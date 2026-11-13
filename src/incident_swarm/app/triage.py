@@ -85,8 +85,8 @@ def classify_by_rules(text: str) -> TriageResult:
     entities = extract_entities(text)
 
     # Check for explicit software/restart intent vs hardware
-    is_explicit_software = bool(re.search(r"\b(software|reboot|restart|restarting|freeze|crash|bsod)\b", text, re.I))
-    has_negated_hardware = bool(re.search(r"\b(not|n't|don't)\s+(?:think\s+)?(?:it's\s+|it\s+is\s+|a\s+)?hardware\b", text, re.I))
+    is_explicit_software = bool(re.search(r"\b(software|reboot|restart|restarting|freeze|crash|bsod)\b", text, re.IGNORECASE))
+    has_negated_hardware = bool(re.search(r"\b(not|n't|don't)\s+(?:think\s+)?(?:it's\s+|it\s+is\s+|a\s+)?hardware\b", text, re.IGNORECASE))
 
     if is_explicit_software or has_negated_hardware:
         return TriageResult(

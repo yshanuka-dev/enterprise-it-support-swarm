@@ -8,12 +8,14 @@ from __future__ import annotations
 import logging
 import uuid
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from langgraph.errors import GraphRecursionError
+from livekit import api as livekit_api
 from pydantic import BaseModel, Field
 
 from incident_swarm.app import tracing
@@ -55,6 +57,17 @@ class ChatResponse(BaseModel):
     runbook_citations: list[dict]
     procedural_citations: list[dict] = Field(default_factory=list)
     path: list[str]
+
+
+class VoiceTokenResponse(BaseModel):
+    """Access token and connection endpoint for a LiveKit room."""
+
+    token: str
+    url: str
+    room: str
+    identity: str
+    server_time: str
+
 
 
 def default_services() -> Services:
@@ -111,6 +124,38 @@ def create_app(graph=None, settings: Settings | None = None) -> FastAPI:
         """Liveness check used by the load balancer."""
         return {"status": "ok", "version": VERSION, "tracing": bool(
             getattr(settings, "langfuse_public_key", None))}
+
+    @app.get("/voice/token", response_model=VoiceTokenResponse)
+    def voice_token(
+        room: str = "incident-room",
+        identity: str | None = None,
+        name: str | None = None,
+    ) -> VoiceTokenResponse:
+        """Issue a JWT token to connect to a LiveKit voice room."""
+        user_identity = identity or f"user-{uuid.uuid4().hex[:8]}"
+        user_name = name or f"User-{user_identity[-4:]}"
+        api_key = getattr(settings, "livekit_api_key", None) or "devkey"
+        api_secret = getattr(settings, "livekit_api_secret", None) or (
+            "secret_key_development_32_characters_long_min"
+        )
+        lk_url = getattr(settings, "livekit_url", None) or "ws://localhost:7880"
+
+        grant = livekit_api.VideoGrants(room_join=True, room=room)
+        token = (
+            livekit_api.AccessToken(api_key, api_secret)
+            .with_identity(user_identity)
+            .with_name(user_name)
+            .with_grants(grant)
+            .to_jwt()
+        )
+        return VoiceTokenResponse(
+            token=token,
+            url=lk_url,
+            room=room,
+            identity=user_identity,
+            server_time=datetime.now(UTC).isoformat(),
+        )
+
 
     @app.post("/chat", response_model=ChatResponse)
     def chat(req: ChatRequest) -> ChatResponse:
