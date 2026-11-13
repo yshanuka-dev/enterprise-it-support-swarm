@@ -33,34 +33,51 @@ CLARIFY_QUESTION = (
 )
 
 
-GREETING_PATTERN = re.compile(
-    r"^(?:hi|hello|hey|good\s+(?:morning|afternoon|evening)|howdy|greetings|what's\s+up|sup)\b[!.? ]*$",
+CONVERSATIONAL_PATTERN = re.compile(
+    r"^(?:"
+    r"hi|hello|hey|good\s+(?:morning|afternoon|evening)|howdy|greetings|what's\s+up|sup|"
+    r"(?:ok|okay|well|great|oh)?[,\s]*(?:thank\s+you|thanks|thx|cheers)(?:[,\s]+(?:for\s+[^.!?]+|man|bro|mate|so\s+much|a\s+lot|very\s+much))*|"
+    r"appreciate\s+(?:it|the\s+help)|"
+    r"stop|bye|goodbye|cya|see\s+ya|exit|quit|all\s+good|that's\s+all|done|nothing\s+else|"
+    r"(?:ok|okay|cool|sounds\s+good|got\s+it|great)[!.]*"
+    r")[!.? ]*$",
     re.IGNORECASE,
 )
 
 
 def generate_conversational_reply(text: str) -> str:
-    """Invoke small LLM (gemini-3.5-flash-lite) to produce a warm, conversational IT assistant greeting."""
+    """Invoke small LLM (gemini-3.5-flash-lite) to produce a warm, conversational reply."""
     try:
         from incident_swarm.config import get_settings, load_model_config
+
         settings = get_settings()
         if settings.google_api_key:
             from google import genai
+
             client = genai.Client(api_key=settings.google_api_key, http_options={"api_version": "v1beta"})
             cfg = load_model_config()
             tier_name = cfg.roles.get("triage", "small")
             model_name = cfg.tiers.get(tier_name).model if tier_name in cfg.tiers else "gemini-3.5-flash-lite"
             prompt = (
-                "You are an enterprise IT Support Assistant. The user sent a greeting: "
-                f"'{text}'. Respond warmly, politely, and ask how you can help with their IT systems, "
-                "software, accounts, or equipment today in 1-2 friendly sentences."
+                "You are an enterprise IT Support Assistant. The user sent a conversational turn: "
+                f"'{text}'. Respond warmly, politely, and naturally in 1-2 friendly sentences.\n"
+                "- If they are thanking you ('thank you', 'thanks', 'for your support'), respond graciously (e.g., 'You are very welcome! Glad I could help. Let me know if you need any further assistance.').\n"
+                "- If they are closing or saying stop/bye/all good, acknowledge politely (e.g., 'Understood! Feel free to reach out anytime if you run into any other IT issues. Have a great day!').\n"
+                "- If they are greeting you ('hello', 'good morning'), greet them warmly and ask how you can help with their IT systems today."
             )
             res = client.models.generate_content(model=model_name, contents=prompt)
             if res.text:
                 return res.text.strip()
     except Exception as exc:  # noqa: BLE001
-        log.debug("Conversational greeting fallback: %s", exc)
+        log.debug("Conversational reply fallback: %s", exc)
+
+    t_lower = text.lower().strip()
+    if any(k in t_lower for k in ["thank", "thx", "appreciate"]):
+        return "You're very welcome! Glad I could help. Let me know if you need assistance with anything else."
+    if any(k in t_lower for k in ["stop", "bye", "goodbye", "all good", "done"]):
+        return "Understood! Feel free to reach out anytime if you need IT support again. Have a great day!"
     return "Hello! I hope you're having a great day. How can I assist you with your IT systems or equipment today?"
+
 
 
 def default_metrics_tool(service: str | None) -> dict:
@@ -234,7 +251,29 @@ class Nodes:
 
     def l1_triage(self, state: SwarmState) -> dict:
         """Classify the problem using structured output and deterministic fallback."""
-        text = " ".join(user_texts(state))
+        texts = user_texts(state)
+        latest_text = texts[-1].strip() if texts else ""
+
+        # 1. Immediate conversational check (greeting, thanks, closing, acknowledgement)
+        if CONVERSATIONAL_PATTERN.match(latest_text):
+            return {
+                **self._hop(state, "l1_triage"),
+                "ticket_type": "conversational",
+                "severity": "low",
+                "service": None,
+                "triage_confidence": 0.95,
+                "user_id": state.get("user_id"),
+                "asset_id": state.get("asset_id"),
+                "clarify_attempts": state.get("clarify_attempts", 0),
+            }
+
+        # 2. Contextual evaluation: if previous turn was clarification request,
+        # combine the last 2 turns; otherwise triage the current turn to avoid history contamination.
+        if state.get("clarify_attempts", 0) > 0 and len(texts) >= 2:
+            text = f"{texts[-2]} {latest_text}"
+        else:
+            text = latest_text
+
         res = triage_message(text)
         user_id = state.get("user_id") or res.user_id
         asset_id = state.get("asset_id") or res.asset_id
@@ -252,19 +291,23 @@ class Nodes:
         }
 
     def clarify(self, state: SwarmState) -> dict:
-        """Graceful conversational fallback: if greeting, generate warm LLM greeting; otherwise ask clarification."""
+        """Graceful conversational fallback: if greeting, thanks, or closing, generate warm LLM reply; otherwise ask clarification."""
         texts = user_texts(state)
         latest_text = texts[-1].strip() if texts else ""
-        if GREETING_PATTERN.match(latest_text):
+        if CONVERSATIONAL_PATTERN.match(latest_text) or state.get("ticket_type") == "conversational":
             conversational_reply = generate_conversational_reply(latest_text)
             return {
                 **self._hop(state, "clarify"),
-                "clarify_attempts": state.get("clarify_attempts", 0),  # don't burn clarify attempt on a simple hello
+                "ticket_type": "conversational",
+                "severity": "low",
+                "cache_hit": False,
+                "clarify_attempts": state.get("clarify_attempts", 0),  # don't burn clarify attempt on conversational turn
                 **_say(conversational_reply),
             }
 
         return {**self._hop(state, "clarify"), "clarify_attempts": state.get("clarify_attempts", 0) + 1,
                 **_say(CLARIFY_QUESTION)}
+
 
     def access_handler(self, state: SwarmState) -> dict:
         """Type 1 Handler: verify security clearance in SQL and provide access resolution."""
@@ -452,14 +495,14 @@ class Nodes:
             for p in precedents:
                 p_text = f"{p.get('canonical_title', '')} {p.get('resolved_problem', '')} {p.get('service', '')}".lower()
                 overlap = query_keywords.intersection(set(re.findall(r"\b[a-z]{3,}\b", p_text)))
-                if (service_norm and service_norm in p_text) or len(overlap) >= 2:
+                if (service_norm and service_norm in p_text) or overlap or p.get("runbook_id") == runbook_id:
                     relevant.append(p)
 
             if relevant:
                 top_p = relevant[0]
                 count = top_p.get("similar_cases", 1)
                 p_title = top_p.get("canonical_title") or top_p.get("resolved_problem", "")
-                precedent_text = f" (matches {count} past resolutions under '{p_title}')"
+                precedent_text = f" (Precedent: {count} similar cases verified under '{p_title}')"
 
         service = state.get("service") or "infrastructure service"
         sev_label = (state.get("severity") or "high").upper()
@@ -538,6 +581,8 @@ class Nodes:
     def after_triage(self, state: SwarmState) -> str:
         if self._over_budget(state):
             return "escalate"
+        if state.get("ticket_type") == "conversational":
+            return "clarify"
         if state.get("triage_confidence", 0) < AMBIGUOUS_CONFIDENCE:
             return "escalate" if state.get("clarify_attempts", 0) >= 1 else "clarify"
         return {"access_identity": "access", "asset_provisioning": "asset"}.get(

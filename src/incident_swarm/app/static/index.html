@@ -1,253 +1,304 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<html lang="en" class="h-full">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Enterprise IT Incident Swarm - Operations Center</title>
-  <!-- Tailwind CSS CDN -->
+  <title>IT Support · AI Assistant</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      darkMode: 'class',
       theme: {
         extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
           colors: {
-            brand: {
-              50: '#eef2ff',
-              500: '#6366f1',
-              600: '#4f46e5',
-              700: '#4338ca',
-            }
+            violet: { 50:'#f5f3ff', 100:'#ede9fe', 400:'#a78bfa', 500:'#8b5cf6', 600:'#7c3aed' },
           }
         }
       }
     }
   </script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- LiveKit -->
+  <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+
   <style>
-    /* Custom scrollbars */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #0f172a; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    * { font-family: 'Inter', sans-serif; }
+
+    body { background: #F7F7F8; }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 99px; }
+
+    /* ── Orb ── */
+    #main-orb {
+      width: 140px; height: 140px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #c4b5fd, #8b5cf6 55%, #6366f1);
+      box-shadow: 0 0 48px rgba(139,92,246,0.45), 0 0 100px rgba(139,92,246,0.15);
+      transition: transform 0.07s ease-out, box-shadow 0.07s ease-out;
+      animation: orbBreath 3.5s ease-in-out infinite;
+    }
+    #main-orb.orb-user {
+      animation: none;
+      background: radial-gradient(circle at 35% 30%, #ddd6fe, #7c3aed 55%, #4f46e5);
+    }
+    #main-orb.orb-agent {
+      animation: none;
+      background: radial-gradient(circle at 35% 30%, #a5f3fc, #0891b2 55%, #7c3aed);
+      box-shadow: 0 0 60px rgba(8,145,178,0.5), 0 0 120px rgba(8,145,178,0.15);
+    }
+    @keyframes orbBreath {
+      0%,100% { transform:scale(1);    box-shadow: 0 0 48px rgba(139,92,246,0.4); }
+      50%      { transform:scale(1.06); box-shadow: 0 0 72px rgba(139,92,246,0.6); }
+    }
+    .orb-ring {
+      position:absolute; border-radius:50%;
+      border: 1.5px solid rgba(139,92,246,0.25);
+      animation: ringExpand 2.6s ease-out infinite;
+      pointer-events:none;
+    }
+    .orb-ring:nth-child(2){ animation-delay:0.87s; }
+    .orb-ring:nth-child(3){ animation-delay:1.73s; }
+    @keyframes ringExpand {
+      0%  { transform:scale(0.6); opacity:0.6; }
+      100%{ transform:scale(1.5); opacity:0;   }
+    }
+
+    /* ── Message bubbles ── */
+    .msg-agent {
+      background: #fff;
+      border: 1px solid #E5E7EB;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .msg-user {
+      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      color: #fff;
+    }
+
+    /* ── Input focus ring ── */
+    #message-input:focus { outline:none; border-color:#8b5cf6; box-shadow: 0 0 0 3px rgba(139,92,246,0.12); }
+
+    /* ── Chip buttons ── */
+    .chip {
+      display:inline-flex; align-items:center; gap:5px;
+      padding:5px 12px; border-radius:99px;
+      font-size:12px; font-weight:500;
+      border:1px solid #E5E7EB; background:#fff;
+      color:#374151; cursor:pointer; white-space:nowrap;
+      transition:all .15s;
+    }
+    .chip:hover { border-color:#8b5cf6; color:#7c3aed; background:#f5f3ff; }
+
+    /* Path steps */
+    .step-node {
+      padding:3px 10px; border-radius:99px; font-size:11px; font-weight:500;
+      border:1px solid #E5E7EB; background:#fff; color:#6B7280; white-space:nowrap;
+    }
+    .step-node.active { border-color:#8b5cf6; background:#f5f3ff; color:#7c3aed; }
+    .step-node.highlight { border-color:#34d399; background:#f0fdf4; color:#059669; }
+    .step-node.warn { border-color:#f87171; background:#fff5f5; color:#dc2626; }
   </style>
 </head>
-<body class="h-full flex flex-col overflow-hidden antialiased font-sans select-none">
 
-  <!-- Header -->
-  <header class="h-16 border-b border-slate-800 bg-slate-900/80 backdrop-blur px-6 flex items-center justify-between z-10 shrink-0">
-    <div class="flex items-center space-x-3">
-      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-        <i class="fa-solid fa-microchip text-white text-lg"></i>
+<body class="h-full flex flex-col overflow-hidden antialiased">
+
+  <!-- ── Header ───────────────────────────────────────────────────── -->
+  <header class="shrink-0 h-14 bg-white border-b border-gray-100 px-6 flex items-center justify-between shadow-sm z-10">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center shadow-sm">
+        <i class="fa-solid fa-wand-magic-sparkles text-white text-xs"></i>
       </div>
       <div>
-        <div class="flex items-center space-x-2">
-          <h1 class="font-bold text-base tracking-wide text-white">IT Incident Resolution Swarm</h1>
-          <span class="px-2 py-0.5 text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 rounded-full">v0.1.0 Enterprise</span>
-        </div>
-        <p class="text-xs text-slate-400">Multi-Agent Tiered Architecture &bull; Corrective RAG &bull; FastMCP &bull; Procedural Memory</p>
+        <span class="font-semibold text-gray-800 text-sm">IT Support Assistant</span>
+        <span class="ml-2 text-[10px] font-medium text-violet-600 bg-violet-50 border border-violet-100 px-2 py-0.5 rounded-full">AI · Multi-Agent</span>
       </div>
     </div>
 
-    <!-- Cluster Status Indicators -->
-    <div class="flex items-center space-x-4">
-      <div class="flex items-center space-x-2 text-xs text-slate-300 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700/60">
-        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
-        <span class="font-medium text-emerald-400">Cluster Online</span>
+    <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        Online
       </div>
-      <div id="tracing-badge" class="flex items-center space-x-1.5 text-xs text-slate-400 bg-slate-800/50 px-2.5 py-1.5 rounded-lg border border-slate-800">
-        <i class="fa-solid fa-chart-line text-cyan-400"></i>
-        <span>Langfuse Tracing</span>
-      </div>
-      <button onclick="openVoiceModal()" class="flex items-center space-x-1.5 text-xs text-indigo-300 hover:text-white bg-indigo-950/60 hover:bg-indigo-900/80 px-2.5 py-1.5 rounded-lg border border-indigo-700/60 transition shadow">
-        <i class="fa-solid fa-microphone-lines text-indigo-400"></i>
-        <span>LiveKit Voice Room</span>
+      <button onclick="openVoiceMode()"
+        class="flex items-center gap-1.5 text-xs font-medium text-violet-600 bg-violet-50 hover:bg-violet-100 border border-violet-200 px-3 py-1.5 rounded-full transition">
+        <i class="fa-solid fa-microphone text-xs"></i> Voice
       </button>
-      <button onclick="resetSession()" class="px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition border border-slate-700">
-        <i class="fa-solid fa-rotate-right mr-1.5 text-slate-400"></i>New Conversation
+      <button onclick="resetSession()"
+        class="text-xs font-medium text-gray-500 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 px-3 py-1.5 rounded-full transition">
+        New chat
       </button>
     </div>
   </header>
 
-  <!-- Main Body: 2 Columns -->
+  <!-- ── Main layout ───────────────────────────────────────────────── -->
   <div class="flex-1 flex overflow-hidden">
-    
-    <!-- Left Column: Chat Conversation -->
-    <section class="w-1/2 flex flex-col border-r border-slate-800 bg-slate-950/50">
-      
-      <!-- Quick Prompts Toolbar -->
-      <div class="px-6 py-3 border-b border-slate-800/80 bg-slate-900/40">
-        <div class="text-xs font-semibold text-slate-400 mb-2 flex items-center justify-between">
-          <span><i class="fa-solid fa-bolt text-amber-400 mr-1.5"></i>Quick Scenario Prompts</span>
-          <span class="text-[10px] text-slate-500">Click to run</span>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <button onclick="setPrompt('How to reset VPN?')" class="px-2.5 py-1 text-xs bg-slate-800/90 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-300 hover:text-indigo-200 border border-slate-700/80 rounded-md transition text-left">
-            ⚡ VPN FAQ (CAG Cache)
-          </button>
-          <button onclick="setPrompt('auth-db is down and rejecting connections')" class="px-2.5 py-1 text-xs bg-slate-800/90 hover:bg-rose-600/30 hover:border-rose-500/50 text-slate-300 hover:text-rose-200 border border-slate-700/80 rounded-md transition text-left">
-            🔥 auth-db Down (L1-L3)
-          </button>
-          <button onclick="setPrompt('Redis is out of memory on prod-cache-01')" class="px-2.5 py-1 text-xs bg-slate-800/90 hover:bg-amber-600/30 hover:border-amber-500/50 text-slate-300 hover:text-amber-200 border border-slate-700/80 rounded-md transition text-left">
-            📖 Redis OOM (Runbook)
-          </button>
-          <button onclick="setPrompt('The cache memory is full and rejecting keys')" class="px-2.5 py-1 text-xs bg-slate-800/90 hover:bg-purple-600/30 hover:border-purple-500/50 text-slate-300 hover:text-purple-200 border border-slate-700/80 rounded-md transition text-left">
-            🧠 Memory Recall (Precedents)
-          </button>
-          <button onclick="setPrompt('My laptop screen AST-0014 has dead pixels and is cracked')" class="px-2.5 py-1 text-xs bg-slate-800/90 hover:bg-blue-600/30 hover:border-blue-500/50 text-slate-300 hover:text-blue-200 border border-slate-700/80 rounded-md transition text-left">
-            💻 Laptop Replacement (RMA)
-          </button>
-          <button onclick="setPrompt('it is broken')" class="px-2.5 py-1 text-xs bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 rounded-md transition text-left">
-            ❓ Ambiguity Clarify
-          </button>
-        </div>
+
+    <!-- Left: Chat -->
+    <section class="flex flex-col w-1/2 border-r border-gray-100 bg-white">
+
+      <!-- Quick prompt chips -->
+      <div class="px-5 py-3 border-b border-gray-50 flex flex-wrap gap-2 overflow-x-auto">
+        <button onclick="setPrompt('How do I reset my VPN?')" class="chip">🔐 Reset VPN</button>
+        <button onclick="setPrompt('auth-db is down and rejecting connections')" class="chip">🔥 Database down</button>
+        <button onclick="setPrompt('Redis is out of memory on prod-cache-01')" class="chip">📖 Memory issue</button>
+        <button onclick="setPrompt('My laptop screen has dead pixels and is cracked')" class="chip">💻 Broken laptop</button>
+        <button onclick="setPrompt('it is broken')" class="chip">❓ Not sure</button>
       </div>
 
-      <!-- Messages Thread -->
-      <div id="messages-container" class="flex-1 overflow-y-auto p-6 space-y-4">
-        <!-- System Greeting -->
-        <div class="flex items-start space-x-3">
-          <div class="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
-            <i class="fa-solid fa-robot text-indigo-400 text-xs"></i>
+      <!-- Messages -->
+      <div id="messages-container" class="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+        <!-- Greeting -->
+        <div class="flex items-start gap-3">
+          <div class="w-7 h-7 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+            <i class="fa-solid fa-robot text-white text-[9px]"></i>
           </div>
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-4 max-w-[85%] text-sm text-slate-200 shadow-sm leading-relaxed">
-            <p class="font-medium text-indigo-300 mb-1">Enterprise Support Assistant Active</p>
-            Hello! I am connected to live observability telemetry, IT service runbooks, and asset inventory. How can I help resolve your incident today?
+          <div class="msg-agent rounded-2xl rounded-tl-sm px-4 py-3 max-w-[80%] text-sm text-gray-700 leading-relaxed">
+            <p class="font-medium text-gray-900 mb-1">Hi there 👋</p>
+            I'm your IT support assistant. Tell me what's going wrong and I'll help resolve it right away.
           </div>
         </div>
       </div>
 
-      <!-- Input Box -->
-      <div class="p-4 border-t border-slate-800 bg-slate-900/30">
-        <form id="chat-form" onsubmit="sendMessage(event)" class="relative flex items-center">
-          <div class="flex items-center space-x-2 mr-3">
-            <label title="Select channel" class="flex items-center text-xs text-slate-400 bg-slate-800 px-2 py-1.5 rounded-lg border border-slate-700 cursor-pointer">
-              <input type="checkbox" id="voice-channel-toggle" class="mr-1.5 rounded text-indigo-600 focus:ring-0">
-              <i class="fa-solid fa-phone text-xs mr-1 text-slate-400"></i>
-              <span>Voice</span>
-            </label>
-          </div>
-          <input 
-            type="text" 
-            id="message-input" 
-            placeholder="Type your issue (e.g., 'Redis is out of memory on prod-cache-01')..."
-            autocomplete="off"
-            class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 pr-12 transition shadow-inner"
-          />
-          <button 
-            type="submit" 
-            id="send-btn"
-            class="absolute right-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
+      <!-- Input -->
+      <div class="p-4 border-t border-gray-100 bg-white">
+        <form id="chat-form" onsubmit="sendMessage(event)" class="flex items-center gap-2">
+          <label class="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer select-none shrink-0">
+            <input type="checkbox" id="voice-channel-toggle" class="rounded text-violet-500 focus:ring-0 focus:ring-offset-0">
+            <i class="fa-solid fa-phone text-[10px]"></i>
+            <span>Voice</span>
+          </label>
+          <input type="text" id="message-input" autocomplete="off"
+            placeholder="Describe your issue…"
+            class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 transition"/>
+          <button type="submit" id="send-btn"
+            class="shrink-0 w-9 h-9 rounded-xl bg-violet-600 hover:bg-violet-500 text-white flex items-center justify-center transition disabled:opacity-40">
             <i class="fa-solid fa-arrow-up text-xs"></i>
           </button>
         </form>
       </div>
     </section>
 
-    <!-- Right Column: Swarm Inspector & Telemetry -->
-    <section class="w-1/2 flex flex-col bg-slate-900/20 overflow-y-auto p-6 space-y-6">
-      
-      <!-- Execution Overview Card -->
-      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-sm">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-sm font-semibold text-slate-200 flex items-center">
-            <i class="fa-solid fa-network-wired text-indigo-400 mr-2"></i>Agent Routing Path
-          </h2>
-          <span id="stat-latency" class="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">0 ms</span>
-        </div>
+    <!-- Right: Status panel -->
+    <section class="w-1/2 overflow-y-auto p-5 space-y-4 bg-gray-50">
 
-        <!-- Node Stepper -->
-        <div id="graph-steps" class="flex items-center space-x-1.5 overflow-x-auto py-2">
-          <div class="px-3 py-1.5 rounded-md text-xs font-mono bg-slate-800 border border-slate-700 text-slate-400">Ready for query</div>
+      <!-- Routing path -->
+      <div class="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">How it was handled</span>
+          <span id="stat-latency" class="text-xs text-gray-400 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-full">—</span>
+        </div>
+        <div id="graph-steps" class="flex flex-wrap gap-1.5 items-center">
+          <span class="step-node">Waiting for a question…</span>
         </div>
       </div>
 
-      <!-- Ticket & Classification Meta Grid -->
-      <div class="grid grid-cols-2 gap-4">
-        
-        <!-- Ticket Meta -->
-        <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
-          <div class="text-xs font-semibold text-slate-400 mb-2 flex items-center justify-between">
-            <span><i class="fa-solid fa-ticket text-indigo-400 mr-1.5"></i>Incident Ticket</span>
-            <span id="badge-ticket-id" class="font-mono text-indigo-300 font-bold">---</span>
-          </div>
-          <div class="space-y-1.5 text-xs">
-            <div class="flex justify-between text-slate-400">
-              <span>Category:</span>
-              <span id="meta-type" class="text-slate-200 font-medium">---</span>
-            </div>
-            <div class="flex justify-between text-slate-400">
-              <span>Severity Level:</span>
-              <span id="meta-severity" class="font-medium">---</span>
-            </div>
-            <div class="flex justify-between text-slate-400">
-              <span>Target Service:</span>
-              <span id="meta-service" class="text-slate-200 font-mono">---</span>
-            </div>
-          </div>
+      <!-- Ticket summary -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm space-y-2">
+          <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider block">Ticket</span>
+          <div class="text-xs text-gray-500 flex justify-between"><span>ID</span><span id="badge-ticket-id" class="text-violet-600 font-semibold">—</span></div>
+          <div class="text-xs text-gray-500 flex justify-between"><span>Type</span><span id="meta-type" class="text-gray-700 font-medium">—</span></div>
+          <div class="text-xs text-gray-500 flex justify-between"><span>Severity</span><span id="meta-severity" class="font-semibold">—</span></div>
+          <div class="text-xs text-gray-500 flex justify-between"><span>Service</span><span id="meta-service" class="text-gray-700 font-mono">—</span></div>
         </div>
 
-        <!-- Escalation & Safety Guardrails -->
-        <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
-          <div class="text-xs font-semibold text-slate-400 mb-2 flex items-center justify-between">
-            <span><i class="fa-solid fa-shield-halved text-cyan-400 mr-1.5"></i>Support Guardrails</span>
-          </div>
-          <div class="space-y-1.5 text-xs">
-            <div class="flex justify-between text-slate-400">
-              <span>Zero-Cost Cache:</span>
-              <span id="meta-cag" class="font-medium text-slate-300">No</span>
-            </div>
-            <div class="flex justify-between text-slate-400">
-              <span>Voice Bridge Paging:</span>
-              <span id="meta-voice-esc" class="font-medium text-slate-300">False</span>
-            </div>
-            <div class="flex justify-between text-slate-400">
-              <span>Human Staff Escalation:</span>
-              <span id="meta-human-esc" class="font-medium text-slate-300">Not required</span>
-            </div>
-          </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm space-y-2">
+          <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider block">Status</span>
+          <div class="text-xs text-gray-500 flex justify-between"><span>Instant answer</span><span id="meta-cag" class="text-gray-700">—</span></div>
+          <div class="text-xs text-gray-500 flex justify-between"><span>Voice paged</span><span id="meta-voice-esc" class="text-gray-700">—</span></div>
+          <div class="text-xs text-gray-500 flex justify-between"><span>Escalated</span><span id="meta-human-esc" class="text-gray-700">—</span></div>
         </div>
       </div>
 
-      <!-- Grounding: Runbooks (CRAG) -->
-      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
-        <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center">
-          <i class="fa-solid fa-book-bookmark text-emerald-400 mr-2"></i>Cited SOP Runbooks (Corrective RAG)
-        </h3>
-        <div id="runbooks-container" class="space-y-2">
-          <p class="text-xs text-slate-500 italic">No runbooks needed for the current prompt.</p>
+      <!-- Runbooks -->
+      <div class="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+        <div class="flex items-center gap-2 mb-3">
+          <i class="fa-solid fa-book-open-reader text-emerald-500 text-xs"></i>
+          <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Referenced guides</span>
+        </div>
+        <div id="runbooks-container">
+          <p class="text-xs text-gray-400 italic">None needed yet.</p>
         </div>
       </div>
 
-      <!-- Grounding: Procedural Memory (Qdrant Precedents) -->
-      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
-        <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center">
-          <i class="fa-solid fa-brain text-purple-400 mr-2"></i>Historical Resolution Precedents
-        </h3>
-        <div id="procedural-container" class="space-y-2">
-          <p class="text-xs text-slate-500 italic">No historical precedents needed.</p>
+      <!-- Precedents -->
+      <div class="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+        <div class="flex items-center gap-2 mb-3">
+          <i class="fa-solid fa-clock-rotate-left text-violet-500 text-xs"></i>
+          <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Similar past cases</span>
+        </div>
+        <div id="procedural-container">
+          <p class="text-xs text-gray-400 italic">None yet.</p>
         </div>
       </div>
 
     </section>
   </div>
 
+
+  <!-- ══════════════════════════════════════════════════════════════
+       Voice Overlay
+  ══════════════════════════════════════════════════════════════════ -->
+  <div id="voice-overlay" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center select-none"
+    style="background:rgba(249,250,251,0.95); backdrop-filter:blur(20px);">
+
+    <p id="voice-status-text" class="text-gray-400 text-sm font-medium mb-12 tracking-wide">Connecting…</p>
+
+    <!-- Orb -->
+    <div class="relative flex items-center justify-center" style="width:220px;height:220px;">
+      <div class="orb-ring" style="width:220px;height:220px;position:absolute;inset:0;"></div>
+      <div class="orb-ring" style="width:220px;height:220px;position:absolute;inset:0;"></div>
+      <div class="orb-ring" style="width:220px;height:220px;position:absolute;inset:0;"></div>
+      <div id="main-orb" style="position:absolute;top:40px;left:40px;"></div>
+    </div>
+
+    <p class="text-gray-400 text-xs font-medium mt-10 mb-7">IT Support Voice Agent</p>
+
+    <!-- Controls -->
+    <div class="flex items-center gap-5">
+      <button id="mute-btn" onclick="toggleMute()"
+        class="w-13 h-13 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:border-violet-300 hover:bg-violet-50 transition"
+        style="width:52px;height:52px;">
+        <i class="fa-solid fa-microphone text-gray-600 text-lg"></i>
+      </button>
+      <button onclick="endVoiceMode()"
+        class="rounded-full bg-red-500 hover:bg-red-400 flex items-center justify-center transition shadow-lg"
+        style="width:60px;height:60px;">
+        <i class="fa-solid fa-phone-slash text-white text-lg"></i>
+      </button>
+    </div>
+
+    <p class="text-gray-300 text-[11px] mt-10">Sub-2s latency · Silero VAD · Gemini STT/TTS</p>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════
+       JavaScript
+  ══════════════════════════════════════════════════════════════════ -->
   <script>
     let currentSessionId = 'sess-' + Math.random().toString(36).substring(2, 10);
     let phraseInterval = null;
 
-    // Friendly, dynamic phrases that rotate while the agent is thinking
-    const FANCY_PHRASES = [
-      "Analyzing incident symptoms...",
-      "Consulting Tier 1 Knowledge Base & FAQ cache...",
-      "Querying Observability MCP telemetry...",
-      "Checking service metrics & memory thresholds...",
-      "Retrieving corrective SOP runbooks...",
-      "Matching past historical incident precedents...",
-      "Validating security clearance permissions...",
-      "Formulating verified resolution steps..."
+    const PHRASES = [
+      "Looking into this…",
+      "Checking your knowledge base…",
+      "Reviewing service metrics…",
+      "Pulling relevant runbooks…",
+      "Matching past incidents…",
+      "Putting together a resolution…",
     ];
 
+    // ── Helpers ─────────────────────────────────────────────────
     function setPrompt(text) {
       document.getElementById('message-input').value = text;
       document.getElementById('message-input').focus();
@@ -255,409 +306,361 @@
 
     function resetSession() {
       currentSessionId = 'sess-' + Math.random().toString(36).substring(2, 10);
-      const container = document.getElementById('messages-container');
-      container.innerHTML = `
-        <div class="flex items-start space-x-3">
-          <div class="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
-            <i class="fa-solid fa-robot text-indigo-400 text-xs"></i>
+      document.getElementById('messages-container').innerHTML = `
+        <div class="flex items-start gap-3">
+          <div class="w-7 h-7 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+            <i class="fa-solid fa-robot text-white text-[9px]"></i>
           </div>
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-4 max-w-[85%] text-sm text-slate-200 shadow-sm leading-relaxed">
-            <p class="font-medium text-indigo-300 mb-1">New Conversation Started</p>
-            Context refreshed. Ready for your next query or outage report.
+          <div class="msg-agent rounded-2xl rounded-tl-sm px-4 py-3 max-w-[80%] text-sm text-gray-700 leading-relaxed">
+            New conversation started — how can I help?
           </div>
-        </div>
-      `;
+        </div>`;
       clearInspector();
     }
 
     function clearInspector() {
-      document.getElementById('stat-latency').innerText = '0 ms';
-      document.getElementById('graph-steps').innerHTML = '<div class="px-3 py-1.5 rounded-md text-xs font-mono bg-slate-800 border border-slate-700 text-slate-400">Ready for query</div>';
-      document.getElementById('badge-ticket-id').innerText = '---';
-      document.getElementById('meta-type').innerText = '---';
-      document.getElementById('meta-severity').innerText = '---';
-      document.getElementById('meta-service').innerText = '---';
-      document.getElementById('meta-cag').innerText = 'No';
-      document.getElementById('meta-voice-esc').innerText = 'False';
-      document.getElementById('meta-human-esc').innerText = 'Not required';
-      document.getElementById('runbooks-container').innerHTML = '<p class="text-xs text-slate-500 italic">No runbooks needed for the current prompt.</p>';
-      document.getElementById('procedural-container').innerHTML = '<p class="text-xs text-slate-500 italic">No historical precedents needed.</p>';
-    }
-
-    async function sendMessage(e) {
-      e.preventDefault();
-      const input = document.getElementById('message-input');
-      const text = input.value.trim();
-      if (!text) return;
-
-      const channel = document.getElementById('voice-channel-toggle').checked ? 'voice' : 'chat';
-      input.value = '';
-      document.getElementById('send-btn').disabled = true;
-
-      // Append User message
-      appendUserMessage(text, channel);
-
-      // Loading bubble with rotating fancy phrases
-      const loadingId = appendLoadingBubble();
-
-      const startTime = performance.now();
-      try {
-        const response = await fetch('/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: text,
-            session_id: currentSessionId,
-            channel: channel
-          })
-        });
-
-        const data = await response.json();
-        const duration = Math.round(performance.now() - startTime);
-
-        // Stop phrase rotation and remove loading bubble
-        clearInterval(phraseInterval);
-        document.getElementById(loadingId)?.remove();
-
-        // Append Agent Reply
-        appendAgentReply(data);
-
-        // Update Inspector
-        updateInspector(data, duration);
-
-      } catch (err) {
-        clearInterval(phraseInterval);
-        document.getElementById(loadingId)?.remove();
-        appendErrorMessage('Unable to reach the support agent: ' + err.message);
-      } finally {
-        document.getElementById('send-btn').disabled = false;
-      }
-    }
-
-    function appendUserMessage(text, channel) {
-      const container = document.getElementById('messages-container');
-      const div = document.createElement('div');
-      div.className = 'flex items-start justify-end space-x-3';
-      div.innerHTML = `
-        <div class="bg-indigo-600 text-white rounded-2xl rounded-tr-none p-3.5 max-w-[80%] text-sm shadow-md leading-relaxed">
-          ${channel === 'voice' ? '<span class="px-1.5 py-0.5 mr-1.5 text-[10px] bg-indigo-800 rounded uppercase font-semibold"><i class="fa-solid fa-microphone mr-1"></i>Voice Channel</span>' : ''}
-          ${escapeHtml(text)}
-        </div>
-        <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center shrink-0 text-white font-bold text-xs shadow-sm">
-          ME
-        </div>
-      `;
-      container.appendChild(div);
-      container.scrollTop = container.scrollHeight;
-    }
-
-    function appendLoadingBubble() {
-      const container = document.getElementById('messages-container');
-      const id = 'loading-' + Math.random().toString(36).substring(2, 9);
-      const div = document.createElement('div');
-      div.id = id;
-      div.className = 'flex items-start space-x-3';
-      div.innerHTML = `
-        <div class="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
-          <i class="fa-solid fa-robot text-indigo-400 text-xs"></i>
-        </div>
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-4 max-w-[85%] text-sm text-slate-300 flex items-center space-x-3 shadow-md">
-          <div class="relative flex items-center justify-center">
-            <i class="fa-solid fa-circle-notch fa-spin text-indigo-400 text-base"></i>
-          </div>
-          <div>
-            <div id="loading-phrase" class="font-medium text-indigo-200 transition-all duration-300">
-              Connecting with IT Support Swarm...
-            </div>
-            <div class="text-[11px] text-slate-400">Multi-agent investigation in progress</div>
-          </div>
-        </div>
-      `;
-      container.appendChild(div);
-      container.scrollTop = container.scrollHeight;
-
-      // Cycle fancy phrases every 1.5 seconds
-      let phraseIdx = 0;
-      phraseInterval = setInterval(() => {
-        const el = document.getElementById('loading-phrase');
-        if (el) {
-          phraseIdx = (phraseIdx + 1) % FANCY_PHRASES.length;
-          el.innerText = FANCY_PHRASES[phraseIdx];
-        }
-      }, 1500);
-
-      return id;
-    }
-
-    function appendAgentReply(data) {
-      const container = document.getElementById('messages-container');
-      const div = document.createElement('div');
-      div.className = 'flex items-start space-x-3';
-      
-      let badge = '';
-      if (data.cache_hit) {
-        badge = '<span class="px-2 py-0.5 text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded mr-2"><i class="fa-solid fa-bolt mr-1"></i>INSTANT FAQ MATCH</span>';
-      } else if (data.escalated_to_human) {
-        badge = '<span class="px-2 py-0.5 text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded mr-2"><i class="fa-solid fa-user-gear mr-1"></i>REFERRED TO HUMAN SPECIALIST</span>';
-      }
-
-      div.innerHTML = `
-        <div class="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
-          <i class="fa-solid fa-robot text-indigo-400 text-xs"></i>
-        </div>
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-4 max-w-[85%] text-sm text-slate-100 shadow-sm leading-relaxed">
-          <div class="mb-1.5">${badge}</div>
-          <div class="text-slate-200 leading-relaxed space-y-1">${formatMarkdown(data.reply)}</div>
-        </div>
-      `;
-      container.appendChild(div);
-      container.scrollTop = container.scrollHeight;
-    }
-
-    function appendErrorMessage(text) {
-      const container = document.getElementById('messages-container');
-      const div = document.createElement('div');
-      div.className = 'flex items-start space-x-3';
-      div.innerHTML = `
-        <div class="w-8 h-8 rounded-lg bg-rose-600/20 border border-rose-500/30 flex items-center justify-center shrink-0">
-          <i class="fa-solid fa-triangle-exclamation text-rose-400 text-xs"></i>
-        </div>
-        <div class="bg-rose-950/40 border border-rose-800/60 rounded-2xl rounded-tl-none p-4 max-w-[85%] text-sm text-rose-200">
-          ${escapeHtml(text)}
-        </div>
-      `;
-      container.appendChild(div);
-      container.scrollTop = container.scrollHeight;
-    }
-
-    function updateInspector(data, latencyMs) {
-      // Latency
-      document.getElementById('stat-latency').innerText = `${latencyMs} ms`;
-
-      // Path steps with user-friendly names
-      const friendlyNodeNames = {
-        'intake': 'Intake Request',
-        'cag_check': 'FAQ Cache Check',
-        'l1_triage': 'L1 Severity Triage',
-        'clarify': 'Request Clarification',
-        'access_handler': 'Access & Credentials',
-        'asset_handler': 'Asset & RMA',
-        'l2_investigator': 'L2 Observability Telemetry',
-        'l3_resolver': 'L3 Runbook Resolution',
-        'writeback': 'Ticket Update',
-        'escalate_to_human': 'Escalate to Engineer'
-      };
-
-      const stepsContainer = document.getElementById('graph-steps');
-      stepsContainer.innerHTML = '';
-      (data.path || []).forEach((node, idx) => {
-        const step = document.createElement('div');
-        step.className = 'px-2.5 py-1 rounded text-xs font-mono font-medium whitespace-nowrap ' +
-          (node === 'cag_check' ? 'bg-amber-950/60 border border-amber-600 text-amber-300' :
-           node === 'l3_resolver' ? 'bg-emerald-950/60 border border-emerald-600 text-emerald-300' :
-           node === 'clarify' ? 'bg-purple-950/60 border border-purple-600 text-purple-300' :
-           node === 'asset_handler' || node === 'access_handler' ? 'bg-blue-950/60 border border-blue-600 text-blue-300' :
-           'bg-slate-800 border border-slate-700 text-indigo-300');
-        step.innerText = friendlyNodeNames[node] || node;
-        stepsContainer.appendChild(step);
-
-        if (idx < data.path.length - 1) {
-          const arrow = document.createElement('span');
-          arrow.className = 'text-slate-600 text-xs';
-          arrow.innerHTML = '&rarr;';
-          stepsContainer.appendChild(arrow);
-        }
-      });
-
-      // Ticket meta
-      document.getElementById('badge-ticket-id').innerText = data.ticket_id || 'N/A';
-      document.getElementById('meta-type').innerText = (data.ticket_type || 'General IT').replace('_', ' ');
-      
-      const sevEl = document.getElementById('meta-severity');
-      sevEl.innerText = (data.severity || 'unknown').toUpperCase();
-      sevEl.className = 'font-bold ' + 
-        (data.severity === 'critical' ? 'text-rose-400' :
-         data.severity === 'medium' ? 'text-amber-400' :
-         data.severity === 'low' ? 'text-emerald-400' : 'text-slate-400');
-
-      document.getElementById('meta-service').innerText = data.service || 'General Workspace';
-
-      // Guardrails
-      document.getElementById('meta-cag').innerHTML = data.cache_hit ? 
-        '<span class="text-amber-400 font-bold"><i class="fa-solid fa-bolt mr-1"></i>Resolved (<20ms)</span>' : 'Evaluated by Agents';
-      
-      document.getElementById('meta-voice-esc').innerHTML = data.needs_voice_escalation ? 
-        '<span class="text-rose-400 font-bold"><i class="fa-solid fa-bell mr-1"></i>Voice Bridge Paged</span>' : 'Standard Queue';
-
-      document.getElementById('meta-human-esc').innerHTML = data.escalated_to_human ? 
-        `<span class="text-rose-400 font-bold">Assigned to Engineer (${escapeHtml(data.escalation_reason || 'Needs human review')})</span>` : 'Handled by Autonomous Agent';
-
-      // Runbooks
-      const rbContainer = document.getElementById('runbooks-container');
-      rbContainer.innerHTML = '';
-      if (data.runbook_citations && data.runbook_citations.length > 0) {
-        data.runbook_citations.forEach(c => {
-          const item = document.createElement('div');
-          item.className = 'p-2.5 rounded-lg bg-slate-800/80 border border-slate-700/80 text-xs space-y-1';
-          item.innerHTML = `
-            <div class="flex items-center justify-between font-medium">
-              <span class="text-emerald-300 font-mono font-bold">${escapeHtml(c.runbook_id || '')} &bull; ${escapeHtml(c.section || '')}</span>
-              <span class="text-[10px] text-slate-400">Match: ${Math.round((c.score || 0) * 100)}%</span>
-            </div>
-            <div class="text-slate-300 font-semibold">${escapeHtml(c.title || '')}</div>
-            <p class="text-slate-400 text-[11px] line-clamp-2">${escapeHtml(c.text || '')}</p>
-          `;
-          rbContainer.appendChild(item);
-        });
-      } else {
-        rbContainer.innerHTML = '<p class="text-xs text-slate-500 italic">No runbooks needed for the current prompt.</p>';
-      }
-
-      // Procedural Precedents
-      const procContainer = document.getElementById('procedural-container');
-      procContainer.innerHTML = '';
-      if (data.procedural_citations && data.procedural_citations.length > 0) {
-        data.procedural_citations.forEach(p => {
-          const item = document.createElement('div');
-          item.className = 'p-2.5 rounded-lg bg-slate-800/80 border border-slate-700/80 text-xs space-y-1';
-          item.innerHTML = `
-            <div class="flex items-center justify-between font-medium">
-              <span class="text-purple-300 font-bold">${escapeHtml(p.canonical_title || p.resolved_problem || 'Historical Precedent')}</span>
-              <span class="px-1.5 py-0.5 rounded text-[10px] bg-purple-950 text-purple-300 border border-purple-800">
-                ${p.similar_cases ? p.similar_cases + ' past incidents' : 'Past Match'}
-              </span>
-            </div>
-            <p class="text-slate-400 text-[11px] line-clamp-2">${escapeHtml(p.resolution_message || '')}</p>
-          `;
-          procContainer.appendChild(item);
-        });
-      } else {
-        procContainer.innerHTML = '<p class="text-xs text-slate-500 italic">No historical precedents needed.</p>';
-      }
-    }
-
-    function formatMarkdown(raw) {
-      if (!raw) return '';
-      // 1. Escape HTML entities
-      let html = escapeHtml(raw);
-
-      // 2. Bold: **text** -> clean strong element
-      html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-white tracking-wide">$1</strong>');
-
-      // 3. Inline code: `code` -> clean code chip
-      html = html.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-slate-800 text-indigo-300 font-mono text-xs border border-slate-700/60">$1</code>');
-
-      // 4. Bullet lists: lines starting with • or - or *
-      html = html.replace(/^[•\-\*]\s*(.*?)$/gm, '<div class="flex items-start space-x-2 my-1.5"><span class="text-indigo-400 select-none">•</span><div class="text-slate-200 leading-snug">$1</div></div>');
-
-      // 5. Paragraph breaks
-      html = html.replace(/\n\n+/g, '<div class="h-2"></div>');
-
-      // 6. Single line breaks
-      html = html.replace(/\n/g, '<br>');
-
-      return html;
+      document.getElementById('stat-latency').innerText = '—';
+      document.getElementById('graph-steps').innerHTML = '<span class="step-node">Waiting for a question…</span>';
+      document.getElementById('badge-ticket-id').innerText = '—';
+      document.getElementById('meta-type').innerText = '—';
+      document.getElementById('meta-severity').innerText = '—';
+      document.getElementById('meta-service').innerText = '—';
+      document.getElementById('meta-cag').innerText = '—';
+      document.getElementById('meta-voice-esc').innerText = '—';
+      document.getElementById('meta-human-esc').innerText = '—';
+      document.getElementById('runbooks-container').innerHTML = '<p class="text-xs text-gray-400 italic">None needed yet.</p>';
+      document.getElementById('procedural-container').innerHTML = '<p class="text-xs text-gray-400 italic">None yet.</p>';
     }
 
     function escapeHtml(str) {
       if (!str) return '';
       return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
     }
 
-    async function openVoiceModal() {
-      const modal = document.getElementById('voice-modal');
-      modal.classList.remove('hidden');
-      const tokenDisplay = document.getElementById('voice-token-display');
-      tokenDisplay.innerText = 'Requesting LiveKit session token from /voice/token...';
+    function formatMarkdown(raw) {
+      if (!raw) return '';
+      let h = escapeHtml(raw);
+      h = h.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>');
+      h = h.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-gray-100 text-violet-600 font-mono text-xs">$1</code>');
+      h = h.replace(/^[•\-\*]\s*(.*?)$/gm, '<div class="flex gap-2 my-1"><span class="text-violet-400 shrink-0">•</span><span>$1</span></div>');
+      h = h.replace(/\n\n+/g,'<div class="h-2"></div>');
+      h = h.replace(/\n/g,'<br>');
+      return h;
+    }
+
+    // ── Send message ─────────────────────────────────────────────
+    async function sendMessage(e) {
+      e.preventDefault();
+      const input = document.getElementById('message-input');
+      const text = input.value.trim();
+      if (!text) return;
+      const channel = document.getElementById('voice-channel-toggle').checked ? 'voice' : 'chat';
+      input.value = '';
+      document.getElementById('send-btn').disabled = true;
+
+      appendUserMsg(text, channel);
+      const loadId = appendLoading();
+      const t0 = performance.now();
+
       try {
-        const res = await fetch('/voice/token?room=incident-room&identity=web-operator-' + Math.random().toString(36).substring(2, 7));
-        const data = await res.json();
-        document.getElementById('voice-room-name').innerText = data.room;
-        document.getElementById('voice-user-id').innerText = data.identity;
-        document.getElementById('voice-server-url').innerText = data.url;
-        tokenDisplay.innerText = data.token;
+        const r = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text, session_id: currentSessionId, channel })
+        });
+        const data = await r.json();
+        const ms = Math.round(performance.now() - t0);
+        clearInterval(phraseInterval);
+        document.getElementById(loadId)?.remove();
+        appendAgentReply(data);
+        updateInspector(data, ms);
       } catch (err) {
-        tokenDisplay.innerText = 'Error fetching token: ' + err.message;
+        clearInterval(phraseInterval);
+        document.getElementById(loadId)?.remove();
+        appendError('Could not reach the assistant: ' + err.message);
+      } finally {
+        document.getElementById('send-btn').disabled = false;
       }
     }
 
-    function closeVoiceModal() {
-      document.getElementById('voice-modal').classList.add('hidden');
+    function appendUserMsg(text, channel) {
+      const c = document.getElementById('messages-container');
+      const d = document.createElement('div');
+      d.className = 'flex justify-end gap-2 items-end';
+      d.innerHTML = `
+        <div class="msg-user rounded-2xl rounded-br-sm px-4 py-3 max-w-[78%] text-sm leading-relaxed shadow-sm">
+          ${channel==='voice'?'<span class="text-[10px] font-semibold opacity-70 mr-1"><i class="fa-solid fa-microphone mr-0.5"></i>Voice</span>':''}
+          ${escapeHtml(text)}
+        </div>`;
+      c.appendChild(d);
+      c.scrollTop = c.scrollHeight;
+    }
+
+    function appendLoading() {
+      const c = document.getElementById('messages-container');
+      const id = 'ld-' + Math.random().toString(36).substring(2,8);
+      const d = document.createElement('div');
+      d.id = id;
+      d.className = 'flex items-start gap-3';
+      d.innerHTML = `
+        <div class="w-7 h-7 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+          <i class="fa-solid fa-robot text-white text-[9px]"></i>
+        </div>
+        <div class="msg-agent rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-gray-500 flex items-center gap-3">
+          <i class="fa-solid fa-circle-notch fa-spin text-violet-400"></i>
+          <span id="ld-phrase">Working on it…</span>
+        </div>`;
+      c.appendChild(d);
+      c.scrollTop = c.scrollHeight;
+      let i = 0;
+      phraseInterval = setInterval(() => {
+        const el = document.getElementById('ld-phrase');
+        if (el) el.innerText = PHRASES[i++ % PHRASES.length];
+      }, 1600);
+      return id;
+    }
+
+    function appendAgentReply(data) {
+      const c = document.getElementById('messages-container');
+      const d = document.createElement('div');
+      d.className = 'flex items-start gap-3';
+      let badge = '';
+      if (data.cache_hit)
+        badge = '<span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full mb-2"><i class="fa-solid fa-bolt"></i> Instant answer</span><br>';
+      else if (data.escalated_to_human)
+        badge = '<span class="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full mb-2"><i class="fa-solid fa-user-gear"></i> Sent to specialist</span><br>';
+      d.innerHTML = `
+        <div class="w-7 h-7 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+          <i class="fa-solid fa-robot text-white text-[9px]"></i>
+        </div>
+        <div class="msg-agent rounded-2xl rounded-tl-sm px-4 py-3 max-w-[82%] text-sm text-gray-700 leading-relaxed">
+          ${badge}${formatMarkdown(data.reply)}
+        </div>`;
+      c.appendChild(d);
+      c.scrollTop = c.scrollHeight;
+    }
+
+    function appendError(text) {
+      const c = document.getElementById('messages-container');
+      const d = document.createElement('div');
+      d.className = 'flex items-start gap-3';
+      d.innerHTML = `
+        <div class="w-7 h-7 rounded-full bg-red-100 border border-red-200 flex items-center justify-center shrink-0 mt-0.5">
+          <i class="fa-solid fa-triangle-exclamation text-red-400 text-[9px]"></i>
+        </div>
+        <div class="rounded-2xl rounded-tl-sm px-4 py-3 max-w-[80%] text-sm text-red-500 bg-red-50 border border-red-100">
+          ${escapeHtml(text)}
+        </div>`;
+      c.appendChild(d);
+      c.scrollTop = c.scrollHeight;
+    }
+
+    // ── Inspector ─────────────────────────────────────────────────
+    function updateInspector(data, ms) {
+      document.getElementById('stat-latency').innerText = ms + ' ms';
+
+      const labels = {
+        intake:'Intake', cag_check:'Quick lookup', l1_triage:'Classify',
+        clarify:'Clarify', access_handler:'Access', asset_handler:'Assets',
+        l2_investigator:'Investigate', l3_resolver:'Resolve',
+        writeback:'Close ticket', escalate_to_human:'Escalate'
+      };
+      const sc = document.getElementById('graph-steps');
+      sc.innerHTML = '';
+      (data.path||[]).forEach((node,i) => {
+        const sp = document.createElement('span');
+        sp.className = 'step-node ' +
+          (node==='cag_check' ? 'highlight' : node==='escalate_to_human' ? 'warn' : 'active');
+        sp.innerText = labels[node] || node;
+        sc.appendChild(sp);
+        if (i < data.path.length-1) {
+          const a = document.createElement('span');
+          a.className = 'text-gray-300 text-xs';
+          a.innerHTML = '→';
+          sc.appendChild(a);
+        }
+      });
+      if (!data.path||!data.path.length) sc.innerHTML = '<span class="step-node">—</span>';
+
+      document.getElementById('badge-ticket-id').innerText = data.ticket_id || '—';
+      document.getElementById('meta-type').innerText = (data.ticket_type||'General').replace('_',' ');
+
+      const sev = document.getElementById('meta-severity');
+      sev.innerText = (data.severity||'—').toUpperCase();
+      sev.className = 'font-semibold ' + (
+        data.severity==='critical' ? 'text-red-500' :
+        data.severity==='medium'   ? 'text-amber-500' :
+        data.severity==='low'      ? 'text-emerald-500' : 'text-gray-500');
+
+      document.getElementById('meta-service').innerText = data.service||'—';
+
+      document.getElementById('meta-cag').innerHTML = data.cache_hit
+        ? '<span class="text-amber-500 font-medium">Yes ⚡</span>' : 'No';
+      document.getElementById('meta-voice-esc').innerHTML = data.needs_voice_escalation
+        ? '<span class="text-rose-500 font-medium">Yes</span>' : 'No';
+      document.getElementById('meta-human-esc').innerHTML = data.escalated_to_human
+        ? `<span class="text-rose-500 font-medium">Yes</span>` : 'No';
+
+      // Runbooks
+      const rb = document.getElementById('runbooks-container');
+      rb.innerHTML = '';
+      if (data.runbook_citations&&data.runbook_citations.length) {
+        data.runbook_citations.forEach(c => {
+          const item = document.createElement('div');
+          item.className = 'p-3 rounded-xl bg-gray-50 border border-gray-100 text-xs space-y-1 mb-2';
+          item.innerHTML = `
+            <div class="flex justify-between items-center">
+              <span class="text-emerald-600 font-semibold font-mono">${escapeHtml(c.runbook_id||'')} · ${escapeHtml(c.section||'')}</span>
+              <span class="text-gray-400">${Math.round((c.score||0)*100)}% match</span>
+            </div>
+            <div class="text-gray-700 font-medium">${escapeHtml(c.title||'')}</div>
+            <p class="text-gray-400 line-clamp-2">${escapeHtml(c.text||'')}</p>`;
+          rb.appendChild(item);
+        });
+      } else { rb.innerHTML = '<p class="text-xs text-gray-400 italic">None needed.</p>'; }
+
+      // Procedural
+      const pc = document.getElementById('procedural-container');
+      pc.innerHTML = '';
+      if (data.procedural_citations&&data.procedural_citations.length) {
+        data.procedural_citations.forEach(p => {
+          const item = document.createElement('div');
+          item.className = 'p-3 rounded-xl bg-gray-50 border border-gray-100 text-xs space-y-1 mb-2';
+          item.innerHTML = `
+            <div class="flex justify-between items-center">
+              <span class="text-violet-600 font-semibold">${escapeHtml(p.canonical_title||p.resolved_problem||'Past case')}</span>
+              ${p.similar_cases?`<span class="text-gray-400">${p.similar_cases} incidents</span>`:''}
+            </div>
+            <p class="text-gray-400 line-clamp-2">${escapeHtml(p.resolution_message||'')}</p>`;
+          pc.appendChild(item);
+        });
+      } else { pc.innerHTML = '<p class="text-xs text-gray-400 italic">None yet.</p>'; }
+    }
+
+
+    // ══ Voice Mode ════════════════════════════════════════════════
+    let _lkRoom = null;
+    let _micAnimFrame = null;
+    let _muted = false;
+
+    async function openVoiceMode() {
+      document.getElementById('voice-overlay').classList.remove('hidden');
+      setVoiceStatus('Fetching session…');
+      setOrbState('idle');
+      try {
+        const id = 'web-op-' + Math.random().toString(36).substring(2,7);
+        const res = await fetch('/voice/token?room=incident-room&identity=' + id);
+        const data = await res.json();
+        setVoiceStatus('Connecting…');
+
+        _lkRoom = new LivekitClient.Room({ adaptiveStream:true, dynacast:true });
+
+        _lkRoom.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
+          if (track.kind === LivekitClient.Track.Kind.Audio) {
+            const el = track.attach();
+            el.id = 'lk-agent-audio';
+            document.body.appendChild(el);
+            startAgentViz(el);
+          }
+        });
+        _lkRoom.on(LivekitClient.RoomEvent.TrackUnsubscribed, track => track.detach().forEach(e=>e.remove()));
+        _lkRoom.on(LivekitClient.RoomEvent.ActiveSpeakersChanged, speakers => {
+          const local  = speakers.some(p=>p.isLocal);
+          const remote = speakers.some(p=>!p.isLocal);
+          if (remote)      { setOrbState('agent'); setVoiceStatus('Agent speaking…'); }
+          else if (local)  { setOrbState('user');  setVoiceStatus('Speaking…'); }
+          else             { setOrbState('idle');  setVoiceStatus('Listening…'); }
+        });
+        _lkRoom.on(LivekitClient.RoomEvent.Disconnected, () => {
+          setOrbState('idle'); setVoiceStatus('Disconnected');
+        });
+
+        await _lkRoom.connect(data.url, data.token);
+        setVoiceStatus('Enabling microphone…');
+
+        const mic = await LivekitClient.createLocalAudioTrack({ echoCancellation:true, noiseSuppression:true });
+        await _lkRoom.localParticipant.publishTrack(mic);
+        startMicViz(mic.mediaStreamTrack);
+        setVoiceStatus('Listening…');
+        setOrbState('idle');
+      } catch(err) {
+        setVoiceStatus('Error: ' + err.message);
+        console.error(err);
+      }
+    }
+
+    function startMicViz(track) {
+      const ctx = new AudioContext();
+      const src = ctx.createMediaStreamSource(new MediaStream([track]));
+      const an  = ctx.createAnalyser(); an.fftSize = 256;
+      src.connect(an);
+      const buf = new Uint8Array(an.frequencyBinCount);
+      function loop() {
+        _micAnimFrame = requestAnimationFrame(loop);
+        an.getByteFrequencyData(buf);
+        const lvl = Math.min(buf.slice(0,24).reduce((a,b)=>a+b,0)/24/90, 1);
+        const orb = document.getElementById('main-orb');
+        if (!orb) return;
+        orb.style.transform = `scale(${1 + lvl*0.45})`;
+        if (lvl>0.07) orb.style.boxShadow = `0 0 ${50+lvl*90}px rgba(139,92,246,${0.4+lvl*0.5})`;
+      }
+      loop();
+    }
+
+    function startAgentViz(audioEl) {
+      try {
+        const ctx = new AudioContext();
+        const src = ctx.createMediaElementSource(audioEl);
+        const an  = ctx.createAnalyser(); an.fftSize = 256;
+        src.connect(an); src.connect(ctx.destination);
+        const buf = new Uint8Array(an.frequencyBinCount);
+        function loop() {
+          requestAnimationFrame(loop);
+          an.getByteFrequencyData(buf);
+          const lvl = Math.min(buf.slice(0,24).reduce((a,b)=>a+b,0)/24/90, 1);
+          const orb = document.getElementById('main-orb');
+          if (!orb||lvl<0.04) return;
+          orb.style.transform = `scale(${1+lvl*0.55})`;
+          orb.style.boxShadow = `0 0 ${60+lvl*110}px rgba(8,145,178,${0.45+lvl*0.5})`;
+        }
+        loop();
+      } catch(e) { console.warn(e); }
+    }
+
+    function setOrbState(s) {
+      const orb = document.getElementById('main-orb');
+      if (!orb) return;
+      orb.classList.remove('orb-user','orb-agent');
+      if (s==='user')  orb.classList.add('orb-user');
+      if (s==='agent') orb.classList.add('orb-agent');
+      if (s==='idle')  orb.style.transform='';
+    }
+
+    function setVoiceStatus(t) {
+      const el = document.getElementById('voice-status-text');
+      if (el) el.innerText = t;
+    }
+
+    function toggleMute() {
+      if (!_lkRoom) return;
+      _muted = !_muted;
+      _lkRoom.localParticipant.setMicrophoneEnabled(!_muted);
+      document.getElementById('mute-btn').innerHTML = _muted
+        ? '<i class="fa-solid fa-microphone-slash text-red-400 text-lg"></i>'
+        : '<i class="fa-solid fa-microphone text-gray-600 text-lg"></i>';
+      setVoiceStatus(_muted ? 'Muted' : 'Listening…');
+    }
+
+    async function endVoiceMode() {
+      cancelAnimationFrame(_micAnimFrame);
+      document.getElementById('lk-agent-audio')?.remove();
+      if (_lkRoom) { await _lkRoom.disconnect(); _lkRoom = null; }
+      _muted = false;
+      document.getElementById('mute-btn').innerHTML = '<i class="fa-solid fa-microphone text-gray-600 text-lg"></i>';
+      document.getElementById('voice-overlay').classList.add('hidden');
     }
   </script>
-
-  <!-- LiveKit Voice Room Modal -->
-  <div id="voice-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-xl shadow-2xl p-6 space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <div class="flex items-center space-x-2.5">
-          <div class="w-8 h-8 rounded-lg bg-indigo-600/30 text-indigo-400 flex items-center justify-center border border-indigo-500/40">
-            <i class="fa-solid fa-microphone-lines text-sm"></i>
-          </div>
-          <div>
-            <h3 class="font-bold text-white text-sm">LiveKit Voice Swarm Bridge</h3>
-            <p class="text-[11px] text-slate-400">Day 15-18 Voice Path &bull; Sub-2s Latency Target</p>
-          </div>
-        </div>
-        <button onclick="closeVoiceModal()" class="text-slate-400 hover:text-white text-sm px-2 py-1 rounded">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-      <div class="grid grid-cols-3 gap-3 text-xs">
-        <div class="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60">
-          <span class="text-slate-400 text-[10px] block uppercase font-medium">Room</span>
-          <span id="voice-room-name" class="font-bold text-indigo-300">incident-room</span>
-        </div>
-        <div class="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60">
-          <span class="text-slate-400 text-[10px] block uppercase font-medium">Identity</span>
-          <span id="voice-user-id" class="font-bold text-slate-200">operator</span>
-        </div>
-        <div class="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60">
-          <span class="text-slate-400 text-[10px] block uppercase font-medium">Server Target</span>
-          <span id="voice-server-url" class="font-bold text-slate-300 truncate block">ws://localhost:7880</span>
-        </div>
-      </div>
-
-      <div class="space-y-2 text-xs">
-        <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="text-slate-400 font-medium">Pipeline Architecture</span>
-            <span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check mr-1"></i>Active</span>
-          </div>
-          <div class="flex items-center space-x-2 text-[11px] text-slate-300">
-            <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Silero VAD</span>
-            <span>&rarr;</span>
-            <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Streaming STT</span>
-            <span>&rarr;</span>
-            <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Fast LLM</span>
-            <span>&rarr;</span>
-            <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Streaming TTS</span>
-          </div>
-        </div>
-
-        <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-1">
-          <div class="flex items-center justify-between">
-            <span class="text-slate-400 font-medium">JWT Room Access Token (/voice/token)</span>
-            <button onclick="navigator.clipboard.writeText(document.getElementById('voice-token-display').innerText)" class="text-[10px] text-indigo-400 hover:text-indigo-300">Copy</button>
-          </div>
-          <p id="voice-token-display" class="font-mono text-[10px] text-slate-400 break-all select-all max-h-20 overflow-y-auto">
-            Loading...
-          </p>
-        </div>
-      </div>
-
-      <div class="pt-2 flex justify-end space-x-2">
-        <button onclick="closeVoiceModal()" class="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition">
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
 </body>
 </html>

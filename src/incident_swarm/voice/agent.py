@@ -210,10 +210,17 @@ def build_voice_pipeline(session_id: str = "voice-session", loop=None):
             from livekit.plugins import google as google_plugin
             from livekit.plugins.google.beta import GeminiSTT, GeminiTTS
 
-            stt = GeminiSTT(api_key=google_key)
-            llm_instance = google_plugin.LLM(model="gemini-2.5-flash", api_key=google_key)
+            # Explicitly configure Gemini STT, LLM (gemini-3.5-flash-lite), and TTS to use v1beta API
+            stt = GeminiSTT(api_key=google_key, http_options={"api_version": "v1beta"})
+            llm_instance = google_plugin.LLM(model="gemini-3.5-flash-lite", api_key=google_key)
+            if hasattr(llm_instance, "_client") and hasattr(llm_instance._client, "_api_client"):
+                llm_instance._client._api_client._http_options.api_version = "v1beta"
+
             tts = GeminiTTS(api_key=google_key)
-            log.info("Using Google Gemini voice pipeline (STT, LLM, TTS)")
+            if hasattr(tts, "_client") and hasattr(tts._client, "_api_client"):
+                tts._client._api_client._http_options.api_version = "v1beta"
+
+            log.info("Using Google Gemini voice pipeline (STT, LLM gemini-3.5-flash-lite, TTS v1beta)")
         except Exception as exc:  # noqa: BLE001
             log.warning("Google voice components init fallback: %s", exc)
 
@@ -285,6 +292,14 @@ def main():
         os.environ["LIVEKIT_API_KEY"] = api_key
     if api_secret:
         os.environ["LIVEKIT_API_SECRET"] = api_secret
+
+    # Force IPv4 in the Rust FFI layer — prevents DNS failures on networks
+    # where IPv6 resolves but is not routable (Windows / corporate / VPN).
+    os.environ.setdefault("LIVEKIT_PREFER_IP_VERSION", "4")
+    # Also disable the LiveKit regional URL rewriting that appends e.g.
+    # "ohyderabad1a.production" — the regional DNS entry may resolve to IPv6
+    # only on some networks, causing the Rust layer to fail.
+    os.environ.setdefault("LIVEKIT_DISABLE_REGION_SELECTION", "1")
 
     logging.basicConfig(level=logging.INFO)
     cli.run_app(

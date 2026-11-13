@@ -64,8 +64,10 @@ help:
 	@echo "    make tag-canonical   Tag distilled records with canonical incident IDs & runbooks"
 	@echo "    make memory-search-canonical  Procedural search with duplicate hits collapsed"
 	@echo ""
-	@echo "  Day 6: Agent Graph & FastAPI Service"
+	@echo "  Day 6: Agent Graph, FastAPI Service & Voice Agent"
 	@echo "    make run-api         Start the FastAPI server on port 8000"
+	@echo "    make run-voice       Start LiveKit Voice Agent worker (dev mode)"
+	@echo "    make voice-console   Run Voice Agent in interactive CLI console mode"
 	@echo ""
 	@echo "  Day 7: Docker, AWS ECS & SSM Deployment"
 	@echo "    make ssm-sync        Push .env secrets to AWS SSM as SecureString"
@@ -244,11 +246,19 @@ memory-search-canonical:
 	$(PYTHON) -m incident_swarm.pipeline.knowledge memory-search "$(QUERY)"
 
 # ---------------------------------------------------------------------------
-# DAY 6: AGENT GRAPH & FASTAPI SERVICE
+# DAY 6: AGENT GRAPH, FASTAPI SERVICE & VOICE AGENT
 # ---------------------------------------------------------------------------
 .PHONY: run-api
 run-api:
 	$(PYTHON) -m uvicorn incident_swarm.app.api:app --reload --host 0.0.0.0 --port 8000
+
+.PHONY: run-voice
+run-voice:
+	set PREFER_IPV4=1 && set LIVEKIT_DISABLE_REGION_SELECTION=1 && $(PYTHON) -m incident_swarm.voice.agent dev
+
+.PHONY: voice-console
+voice-console:
+	set PREFER_IPV4=1 && set LIVEKIT_DISABLE_REGION_SELECTION=1 && $(PYTHON) -m incident_swarm.voice.agent console
 
 # ---------------------------------------------------------------------------
 # DAY 7: DOCKER, AWS ECS & SSM DEPLOYMENT

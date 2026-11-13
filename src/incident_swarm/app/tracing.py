@@ -86,18 +86,18 @@ def log_voice_pipeline_span(
         from langfuse import get_client
 
         client = get_client()
-        # Create a trace or span under the session
-        trace = client.trace(
-            name="voice_call",
-            session_id=session_id,
-            tags=["channel:voice", "voice_pipeline"],
-        )
-        trace.span(
+        # Langfuse v5: as_type= (not type=); session_id via trace_context
+        trace_id = client.create_trace_id()
+        trace_context = {"trace_id": trace_id, "session_id": session_id}
+        with client.start_as_current_observation(
+            as_type="span",
             name="voice_pipeline",
+            trace_context=trace_context,
             metadata=meta,
             input="user_speech_end",
             output="agent_audio_start",
-        )
+        ):
+            pass  # span is flushed on context exit
     except Exception as exc:  # noqa: BLE001
         log.debug("Langfuse voice_pipeline span skipped: %s", exc)
 
