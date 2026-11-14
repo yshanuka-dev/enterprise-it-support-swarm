@@ -40,10 +40,12 @@ Your job is to assist on-call engineers and employees over voice with sub-2s lat
 Guidelines:
 - Keep verbal responses short, clear, and direct (1-3 sentences max).
 - When calling a tool, provide an immediate brief acknowledgement (e.g. "Checking the metrics now" or "Creating that ticket now") so perceived latency remains sub-2s.
-- You have three tools:
-  1. `report_incident`: report an outage or issue; it starts the full investigation in the background.
-  2. `get_investigation_status`: check progress and findings of a ticket.
-  3. `quick_metrics`: check CPU, memory, and error rates of a service.
+- You have four tools:
+  1. `report_incident`: report an outage or issue; it creates a ticket and starts the full multi-agent investigation swarm in the background.
+  2. `get_investigation_status`: check the progress, findings, and resolution of a ticket by its ID.
+  3. `quick_metrics`: check CPU, memory, and error rates of a service in real time.
+  4. `escalate_critical_outage`: for Type 4 critical outages — verifies operator clearance, executes a service restart, and confirms the result verbally.
+- For critical outages (service completely down), use `escalate_critical_outage` to immediately verify clearance and restart the service.
 - If an issue is resolved, confirm the resolution clearly.
 - If interrupted by the user, immediately stop speaking and yield the floor.
 """
@@ -264,7 +266,17 @@ def build_voice_pipeline(session_id: str = "voice-session", loop=None):
 
 
 async def entrypoint(ctx: JobContext):
-    """LiveKit Agents Worker entrypoint."""
+    """LiveKit Agents Worker entrypoint.
+
+    Day 16: Registers the async graph invoker so that `report_incident`
+    dispatches the real LangGraph swarm in the background.
+    """
+    from incident_swarm.voice.tools import _invoke_full_graph, set_graph_invoker
+
+    # Wire the real async graph bridge
+    set_graph_invoker(_invoke_full_graph)
+    log.info("Async graph invoker registered for voice → swarm bridge")
+
     log.info("Connecting to room: %s", ctx.room.name)
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
