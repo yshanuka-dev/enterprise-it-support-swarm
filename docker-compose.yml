@@ -47,5 +47,21 @@ services:
       retries: 3
       start_period: 10s
 
+  voice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: swarm-voice
+    depends_on:
+      api:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Use internal docker postgres host
+      DATABASE_URL: postgresql://${POSTGRES_USER:-swarm}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ops_db}
+    command: ["python", "-m", "incident_swarm.voice.agent", "start"]
+    restart: on-failure
+
 volumes:
   pgdata:

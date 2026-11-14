@@ -69,15 +69,24 @@ help:
 	@echo "    make run-voice       Start LiveKit Voice Agent worker (dev mode)"
 	@echo "    make voice-console   Run Voice Agent in interactive CLI console mode"
 	@echo ""
-	@echo "  Day 7: Docker, AWS ECS & SSM Deployment"
+	@echo "  Docker & Compose (Whole System: Postgres + API + Voice Agent)"
+	@echo "    make docker-up       Build and start all 3 services (Postgres, API, Voice)"
+	@echo "    make docker-down     Stop all Docker Compose services"
+	@echo "    make docker-ps       Check status and health of containers"
+	@echo "    make docker-logs     Follow logs from all running containers"
+	@echo "    make docker-logs-api Follow logs from the FastAPI Ops Console"
+	@echo "    make docker-logs-voice Follow logs from the LiveKit Voice Agent"
+	@echo "    make docker-test     Run full pytest suite inside the Docker container"
+	@echo "    make docker-reset    Wipe DB volume, re-seed, and rebuild whole stack"
+	@echo "    make docker-check    Test http://localhost:8000/health endpoint"
+	@echo ""
+	@echo "  AWS ECS & SSM Deployment"
 	@echo "    make ssm-sync        Push .env secrets to AWS SSM as SecureString"
 	@echo "    make aws-ecr-create  Create Amazon ECR repository"
 	@echo "    make aws-ecr-push    Build & push Docker image to Amazon ECR"
 	@echo "    make aws-iam-setup   Configure IAM roles for ECS Fargate & SSM access"
 	@echo "    make aws-ecs-deploy  Deploy ECS Fargate service & ALB"
 	@echo "    make aws-verify      Verify live health and chat on ALB"
-	@echo "    make compose-up      Start Postgres and Swarm API via Docker Compose"
-	@echo "    make compose-down    Stop Docker Compose services"
 	@echo ""
 	@echo "  Quality"
 	@echo "    make test          Run pytest"
@@ -261,7 +270,7 @@ voice-console:
 	set PREFER_IPV4=1 && set LIVEKIT_DISABLE_REGION_SELECTION=1 && $(PYTHON) -m incident_swarm.voice.agent console
 
 # ---------------------------------------------------------------------------
-# DAY 7: DOCKER, AWS ECS & SSM DEPLOYMENT
+# DOCKER & DOCKER COMPOSE (WHOLE SYSTEM: POSTGRES + API + VOICE WORKER)
 # ---------------------------------------------------------------------------
 IMAGE_NAME := incident-swarm-api:latest
 
@@ -274,15 +283,47 @@ docker-build:
 docker-run:
 	docker run --rm -it -p 8000:8000 --env-file .env $(IMAGE_NAME)
 
-.PHONY: compose-up
-compose-up:
-	docker compose up -d
-	@echo "✅  Postgres and Swarm API running. Check health at http://localhost:8000/health"
+.PHONY: docker-up compose-up
+docker-up compose-up:
+	docker compose up --build -d
+	@echo "✅  Postgres, FastAPI Swarm API, and Voice Agent running!"
+	@echo "👉  Ops Console: http://localhost:8000"
+	@echo "👉  Health check: http://localhost:8000/health"
 
-.PHONY: compose-down
-compose-down:
+.PHONY: docker-down compose-down
+docker-down compose-down:
 	docker compose down
 	@echo "🛑  Compose services stopped"
+
+.PHONY: docker-ps compose-ps
+docker-ps compose-ps:
+	docker compose ps
+
+.PHONY: docker-logs compose-logs
+docker-logs compose-logs:
+	docker compose logs -f
+
+.PHONY: docker-logs-api
+docker-logs-api:
+	docker compose logs -f api
+
+.PHONY: docker-logs-voice
+docker-logs-voice:
+	docker compose logs -f voice
+
+.PHONY: docker-test
+docker-test:
+	docker compose run --rm api pytest -v
+
+.PHONY: docker-reset
+docker-reset:
+	docker compose down -v
+	docker compose up --build -d
+	@echo "🔄  Stack reset, database re-seeded, and containers restarted."
+
+.PHONY: docker-check
+docker-check:
+	@curl -f http://localhost:8000/health && echo " - API is healthy and reachable"
 
 .PHONY: ssm-verify
 ssm-verify:

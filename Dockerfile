@@ -67,5 +67,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-ENTRYPOINT ["uvicorn", "incident_swarm.app.api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "incident_swarm.app.api:app", "--host", "0.0.0.0", "--port", "8000"]
 
