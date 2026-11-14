@@ -64,6 +64,16 @@ class VoiceInterruptionTracker:
         self.interrupted_utterances: list[str] = []
         self._last_spoken_text: str = ""
 
+    @staticmethod
+    def truncate_to_interrupted(text: str) -> str:
+        """Strip trailing text and tag cleanly with [interrupted]."""
+        clean = text.replace(" [interrupted]", "").strip()
+        return f"{clean} [interrupted]" if clean else "[interrupted]"
+
+    def get_last_interruption(self) -> str | None:
+        """Return the most recently interrupted utterance."""
+        return self._last_spoken_text if self._last_spoken_text else None
+
     def on_speech_created(self, ev: SpeechCreatedEvent, session: AgentSession) -> None:
         """Attached to every SpeechHandle created by the voice session."""
         handle = ev.speech_handle
@@ -106,12 +116,7 @@ class VoiceInterruptionTracker:
         except Exception as exc:  # noqa: BLE001
             log.warning("Could not extract speech handle items: %s", exc)
 
-        # Clean and append [interrupted]
-        if truncated_spoken:
-            clean_text = truncated_spoken.replace(" [interrupted]", "").strip()
-            final_tagged = f"{clean_text} [interrupted]"
-        else:
-            final_tagged = "[interrupted]"
+        final_tagged = self.truncate_to_interrupted(truncated_spoken)
 
         self.interrupted_utterances.append(final_tagged)
         self._last_spoken_text = final_tagged
@@ -150,14 +155,19 @@ class VoiceLatencyTracker:
         self.llm_ttft: float = 0.35       # default small model ~350ms
         self.tts_ttfb: float = 0.20       # default streaming TTS ~200ms
         self.turn_start_time: float | None = None
+        self.recorded_spans: list[dict[str, Any]] = []
 
     def on_user_speech_committed(self) -> None:
         self.turn_start_time = time.monotonic()
 
+    def get_latest_span(self) -> dict[str, Any] | None:
+        """Return the most recent latency span."""
+        return self.recorded_spans[-1] if self.recorded_spans else None
+
     def on_metrics_collected(self, ev: Any) -> None:
-        """Parse LiveKit MetricsCollectedEvent and log pipeline span."""
+        """Parse LiveKit MetricsCollectedEvent (or direct metric instance) and log pipeline span."""
         try:
-            metrics_obj = getattr(ev, "metrics", None)
+            metrics_obj = getattr(ev, "metrics", ev)
             if metrics_obj is None:
                 return
 
@@ -170,8 +180,19 @@ class VoiceLatencyTracker:
             elif "TTS" in metric_name:
                 self.tts_ttfb = getattr(metrics_obj, "ttfb", self.tts_ttfb)
 
-            # Compute total end-to-end latency
+            # Compute total end-to-end latency (end of speech to first audio byte)
             total_latency = self.eou_delay + self.llm_ttft + self.tts_ttfb
+
+            span_data = {
+                "session_id": self.session_id,
+                "end_of_utterance_delay": self.eou_delay,
+                "llm_first_token": self.llm_ttft,
+                "tts_first_byte": self.tts_ttfb,
+                "total_latency": total_latency,
+                "sub_2s": total_latency < 2.0,
+                "timestamp": time.time(),
+            }
+            self.recorded_spans.append(span_data)
 
             # Log to Langfuse and logs
             tracing.log_voice_pipeline_span(
